@@ -15,6 +15,7 @@
 | **Odin** | 1 | opus 4.8 | opus 4.7 | Routing requires strongest reasoning |
 | **Loki** | 1 | opus 4.8 | opus 4.7 | Argumentation and pattern recognition |
 | **Ledger** | 1 | opus 4.8 | opus 4.7 | Needs full context comprehension for tracking |
+| **Specter** | 1 | opus 4.8 | opus 4.7 | Multi-angle investigation needs strongest reasoning |
 | **Forge** | 2 | opus 4.7 | opus 4.6 | Code quality needs strong model |
 | **Athena** | 2 | opus 4.7 | opus 4.6 | Review accuracy is critical |
 | **Gauntlet** | 2 | opus 4.7 | opus 4.6 | Test logic needs reasoning |

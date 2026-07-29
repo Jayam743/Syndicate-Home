@@ -40,6 +40,7 @@ Syndicate doesn't replace your existing Claude Code workflow — it rides shotgu
 | **Scribe** | Prompt Crafter | Translates "fix the thing" into a surgical briefing. The interpreter between you and the specialists. |
 | **Loki** | Devil's Advocate | Watches the crew work and asks uncomfortable questions. Keeps a monthly burn book of everything that could be sharper. Self-learning, never self-applying. |
 | **Ledger** | Activity Tracker | The bookkeeper who never sleeps. Logs your work as it happens. Come Wednesday, your status report writes itself. |
+| **Specter** | Investigator | The ghost that phases through your systems and finds what's lurking. Attacks from every angle, argues with Loki, presents options A/B/C/D. Read-only until you say otherwise. |
 | **Forge** | Coder | Hammer meets anvil. Writes code, matches patterns, reports what it built. No gold-plating, no unsolicited abstractions. |
 | **Athena** | Reviewer | Wisdom over speed. Finds the bug you'd ship to prod. Only speaks when she's 80%+ confident — no style nitpicks, no noise. |
 | **Gauntlet** | Tester | The trial by fire. Runs your tests, writes new ones, stress-tests the edges. If it passes Gauntlet, it ships. |
@@ -57,7 +58,7 @@ Every agent gets a model matched to their cognitive load. Fallbacks stay in-fami
 
 | Tier | Who | Primary | Fallback | Why |
 |------|-----|---------|----------|-----|
-| **1 — Command** | Odin, Loki, Ledger | Opus 4.8 | Opus 4.7 | These agents *think*. Routing, arguing, tracking — all require top-tier reasoning. |
+| **1 — Command** | Odin, Loki, Ledger, Specter | Opus 4.8 | Opus 4.7 | These agents *think*. Routing, arguing, tracking, investigating — all require top-tier reasoning. |
 | **2 — Execution** | Forge, Athena, Gauntlet, Titan, Safecracker, Scribe | Opus 4.7 | Opus 4.6 | These agents *do*. Code, review, test, infra — precision matters. |
 | **3 — Utility** | Hermes, Herald, Cipher | Sonnet 5 | Sonnet 4 | These agents *move things*. Git commands, message formatting, file conversion — formulaic, fast. |
 
