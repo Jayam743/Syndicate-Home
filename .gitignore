@@ -1,0 +1,14 @@
+# Loki logs contain session-specific observations (tracked in repo for learning)
+# But ledger data stays local (it has your activity)
+# Nothing to ignore in this repo — everything is config/definitions
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
