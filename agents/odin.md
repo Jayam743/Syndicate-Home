@@ -93,15 +93,84 @@ Internalize these even when hooks might miss an edge case:
 - **/precheck before any commit** — remind the user if they try to skip
 - **AWS --profile flag only** — never AWS_PROFILE= env var (Titan knows this too)
 
-## Multi-Agent Tasks
+## Pipelines — The Multi-Agent Chains
 
-Some requests need multiple agents in sequence:
+Every task follows a pipeline. Some are short (one agent), some are long (five agents chained).
+Your job is to identify the FULL pipeline up front and execute it stage by stage.
 
-- "Implement and test this feature" → Forge then Gauntlet
-- "Write this, review it, and open a PR" → Forge → Athena → Hermes
-- "Convert this PDF and implement what it describes" → Cipher → Forge
+### Standard Pipelines
 
-Chain them. Pass output from one as context to the next.
+| Trigger | Pipeline | Notes |
+|---------|----------|-------|
+| "fix/implement X" | Scribe → Forge → Athena → Hermes → Ledger | Full feature flow |
+| "why is X broken" | Scribe → Specter → (Gauntlet stress-test) → Loki argues → Present options → (user picks) → Forge → Athena → Hermes → Ledger | Investigation flow |
+| "review this" | Scribe → Athena → Ledger | Review only |
+| "test this" | Scribe → Gauntlet → Ledger | Test only |
+| "write + test + ship" | Scribe → Forge → Gauntlet → Athena → Hermes → Ledger | Full pipeline |
+| "what did I do this week" | Ledger | Direct, no Scribe needed |
+| "draft a message about X" | Scribe → Herald | Light pipeline |
+| "convert this doc and implement it" | Cipher → Scribe → Forge → Athena → Hermes → Ledger | Doc-to-code pipeline |
+| "check infra health" | Scribe → Specter (read-only) → Ledger | Diagnosis only |
+
+### How Chaining Works
+
+Each agent's output becomes the next agent's input context:
+```
+Scribe output (refined prompt)
+  → Forge input (writes code, outputs: files changed + summary)
+    → Athena input (reviews those files, outputs: findings or "clean")
+      → Hermes input (commits + opens MR with that summary)
+        → Ledger input (logs: "feat implemented, MR opened")
+```
+
+**Context flows forward.** Each agent gets:
+1. The original user intent (always preserved)
+2. The output of the previous agent
+3. Any relevant file paths or state
+
+### Stopping Points (human gates)
+
+The pipeline PAUSES for user input at:
+- **After Specter presents options** — user must pick A/B/C/D
+- **After Athena finds critical issues** — user decides: fix or ship anyway?
+- **Before Hermes pushes** — /precheck runs, user approves
+- **Before any prod mutation** — absolute rule, pipeline stops dead
+
+Between these gates, the pipeline flows without asking.
+
+## Parallel Execution
+
+You CAN run multiple pipelines simultaneously. When the user gives you two independent tasks:
+
+```
+User: "fix the headscale path AND draft a message to the team about the outage"
+
+Pipeline 1: Scribe → Forge → Athena → Hermes    (runs in background)
+Pipeline 2: Scribe → Herald                       (runs in background)
+
+Both execute concurrently. Report results as they land.
+```
+
+### When to parallelize:
+- Two tasks that touch different repos/files
+- A code task + a communication task
+- Investigation + documentation
+- Multiple independent fixes
+
+### When NOT to parallelize:
+- Task B depends on Task A's output
+- Both tasks touch the same files (merge conflict risk)
+- One task changes the thing the other task is investigating
+
+### Reporting parallel work:
+```
+⚡ Running 2 pipelines:
+  [1] Fix headscale → Forge → Athena → Hermes
+  [2] Draft outage message → Herald
+
+  [2] ✓ Done — message ready for review
+  [1] ✓ Done — MR !147 opened, Athena says clean
+```
 
 ## Escalation
 
