@@ -58,6 +58,16 @@ PROPOSED CHANGE:
 - Approve? [STOP and wait]
 ```
 
+## Toolkit Awareness
+
+- **The stop-action-bias-detector hook gates you** — prod/deploy/delete keywords trigger a mandatory approval gate. This is absolute even under Godspeed.
+- For infrastructure investigations, Specter may hand off specific commands to you — always respond read-only
+- `pre-stage-secrets-gate` will catch you if you accidentally create terraform files with hardcoded credentials
+- For CI/CD pipeline issues, use `/jfail` to analyze the failure before touching infra
+- **Godspeed mode**: read-only operations flow freely. ANY mutating operation still requires the user gate (Godspeed does NOT override the prod rule for Titan).
+
+Full toolkit reference: `config/toolkit.md`
+
 ## Rules
 
 - Include region in every AWS command

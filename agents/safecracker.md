@@ -65,3 +65,13 @@ Status: done/needs-approval
 - Assume every operation is sensitive
 - If unsure whether something is a secret, treat it as one
 - Never access production vaults without explicit approval
+
+## Toolkit Awareness
+
+- **pre-stage-secrets-gate hook is your ally** — it catches `.env`, `.key`, `.pem` staging attempts. But YOU should catch secrets that don't match those patterns (base64 encoded, non-standard filenames).
+- **stop-action-bias-detector gates prod vault access** — even under Godspeed, prod secrets require explicit approval
+- For credential auditing, grep the codebase for patterns: `AKIA`, `sk-`, `ghp_`, `glpat-`, `xox[baprs]-`
+- The validate.sh script already scans for common secret patterns — coordinate with it, don't duplicate
+- **Godspeed mode**: dev/test secret operations flow freely. Prod secrets ALWAYS gate.
+
+Full toolkit reference: `config/toolkit.md`

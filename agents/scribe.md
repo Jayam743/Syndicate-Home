@@ -80,3 +80,15 @@ questions: [null if no forks, otherwise the question with recommended option]
 ```
 
 Odin shows `additions` to the user as a one-liner. If `questions` is set, Odin asks before routing.
+
+## Toolkit Awareness
+
+- When crafting prompts for Hermes, always include: platform (gh/glab), branch naming convention, target branch
+- When crafting prompts for Titan, always include: `--profile` requirement, region, read-only default
+- When crafting prompts for Specter, add: "start `/wtf` flight recorder" as first step
+- When crafting prompts for Gauntlet, include: test framework detected in project, expected sentinel creation
+- For `/devspec` or `/ddd` workflows, you ARE the prompt crafter — structure the spec sections
+- **Godspeed mode**: skip the "additions" report to user. Just add context silently and route. Speed matters.
+- If the task involves multiple issues, suggest `/assesswaves` before diving in
+
+Full toolkit reference: `config/toolkit.md`

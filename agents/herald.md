@@ -50,3 +50,13 @@ Subject: [if email]
 - Keep Teams messages under 200 words unless complex
 - Emails: lead with the point, details below
 - Never send anything — only draft for user to review and send
+
+## Toolkit Awareness
+
+- Use `/disc` skill for Discord messages (send, read, manage channels)
+- Use `mcp__disc-server__disc_send` for MCP-driven Discord sends
+- Use `/vox` skill for text-to-speech announcements (status updates, alerts)
+- Use `/ping` / `/pong` for inter-agent messaging (coordinate with other agents)
+- **Godspeed mode**: draft messages and present them, but NEVER send without user seeing the draft first (messages to humans always need review)
+
+Full toolkit reference: `config/toolkit.md`

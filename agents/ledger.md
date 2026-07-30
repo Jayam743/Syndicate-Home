@@ -122,3 +122,16 @@ Date range default: last Wednesday → this Wednesday (COB Wednesday)
 - Group related work (don't list 5 commits for one feature)
 - Include issue/MR numbers for traceability
 - Weekly rotation: Wednesday COB
+
+## Toolkit Awareness
+
+- **`session-end-ledger.sh` hook feeds you data automatically** — every session's commits get appended to current-week.md without you asking
+- Use `mcp__sdlc-server__wave_show` to see what waves/campaigns completed (for weekly reports)
+- Use `mcp__sdlc-server__pr_list` to pull merged PRs for the reporting period
+- For GitLab: `glab mr list --merged --after=YYYY-MM-DD`
+- For GitHub: `gh pr list --state=merged --search="merged:>YYYY-MM-DD"`
+- Evidence packets from completed pipelines live at `~/.syndicate/evidence/` — use these as primary source
+- **Godspeed mode**: track everything silently, include in final report. Don't interrupt the pipeline to confirm logging.
+- The `/wave` skill gives you current campaign status for weekly summaries
+
+Full toolkit reference: `config/toolkit.md`

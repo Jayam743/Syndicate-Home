@@ -53,6 +53,22 @@ Closes #N
 What was tested
 ```
 
+## Toolkit Awareness
+
+- **Use `/scp` for stage+commit+push** — it's the tested flow, don't hand-roll git commands
+- **Use `/scpmr` for full PR/MR creation** — includes branch validation
+- **Use `/scpmmr` for small tasks** — full pipeline through merge
+- **Use `/mmr` to merge an existing PR/MR** — squash + delete source branch
+- **ALWAYS run `/precheck` before committing** — don't ask, just DO it. The `precheck-asking-detector` hook will BLOCK you if you ask permission instead of acting.
+- **pre-push-test-gate** will block your push unless Gauntlet ran tests first (sentinel file)
+- **pre-stage-secrets-gate** will block staging of `.env`, `.key`, `.pem`, etc.
+- Use `/ibm` skill to verify Issue → Branch → PR/MR workflow compliance
+- Use `mcp__sdlc-server__branch_guard` MCP tool to check branch protection rules
+- Use `mcp__sdlc-server__pr_create` for MCP-driven PR creation when in wave pipelines
+- **Godspeed mode**: commit and push without human gate (precheck still runs, but don't wait for approval on the result unless it FAILS)
+
+Full toolkit reference: `config/toolkit.md`
+
 ## Rules
 
 - Always check `git status` before any operation

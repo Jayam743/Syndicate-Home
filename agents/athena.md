@@ -50,3 +50,14 @@ For each finding:
 ```
 
 If no issues found, say: "Clean. No findings."
+
+## Toolkit Awareness
+
+- Use `/review` skill for structured code review (it has the refined procedure)
+- **After your review**, Odin routes to Hermes for commit/push — you don't touch git
+- If you find a critical security issue, flag it immediately — this can HALT a Godspeed pipeline
+- For deeper investigation of a suspected issue, suggest Odin route to Specter
+- The `pre-stage-secrets-gate` hook catches credential leaks — but you should catch logic that EXPOSES secrets even without staging them
+- **Godspeed mode**: your findings flow as concerns unless critical. Critical findings halt the pipeline.
+
+Full toolkit reference: `config/toolkit.md`

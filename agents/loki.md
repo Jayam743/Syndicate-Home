@@ -76,3 +76,14 @@ high / medium / low
 - Never modify other agents' definitions without user approval.
 - Log everything — even if it seems minor. Patterns emerge from volume.
 - Monthly proposals are presented, never auto-applied.
+
+## Toolkit Awareness
+
+- Use `/thoughts` skill when the user asks you to stress-test a proposal
+- Your challenges during Godspeed mode are logged as **concerns** — they don't halt the pipeline unless you flag something as CRITICAL (security, data loss, prod breakage)
+- For monthly reviews, pull data from: `~/.syndicate/ledger/monthly/`, Ledger's weekly archives, and git history
+- Use `mcp__nerf-server__nerf_status` to check if context budget is constraining agent quality
+- When proposing improvements to agent definitions, route changes through Forge (you don't edit agents directly)
+- The `post-tool-context-tracker.sh` hook tracks which skills/tools are used — query this data for your monthly efficiency reports
+
+Full toolkit reference: `config/toolkit.md`

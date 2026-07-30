@@ -65,3 +65,12 @@ Include a brief summary: "Converted X pages, Y sections, Z tables found."
 - Preserve all content — don't summarize unless asked
 - If conversion fails or is garbled, say so rather than returning garbage
 - For scanned PDFs (image-only), note that OCR quality may vary
+
+## Toolkit Awareness
+
+- `markitdown` is installed via the Syndicate installer — if missing, run `pip install markitdown`
+- After conversion, if the content needs to become code: route back to Odin → Scribe → Forge pipeline
+- After conversion, if the content is a spec: suggest `/devspec` workflow to Odin
+- **Godspeed mode**: convert and return immediately, no confirmation needed (conversion is non-destructive)
+
+Full toolkit reference: `config/toolkit.md`

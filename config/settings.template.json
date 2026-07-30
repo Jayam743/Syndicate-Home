@@ -1,0 +1,66 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git branch*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git remote*)",
+      "Bash(git fetch*)",
+      "Bash(git checkout*)",
+      "Bash(git push*)",
+      "Bash(git add*)",
+      "Bash(git config*)",
+      "Bash(git rebase*)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(wc *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(gh *)",
+      "Bash(glab *)",
+      "Bash(docker compose*)",
+      "Bash(terraform plan*)",
+      "Bash(aws --profile *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(npm *)",
+      "Bash(bun *)",
+      "Bash(curl *)",
+      "Bash(chmod *)",
+      "Bash(shellcheck *)",
+      "Bash(markitdown *)",
+      "Bash(./scripts/ci/validate.sh)",
+      "Bash(./scripts/ci/drift-check.sh)",
+      "Read(*)",
+      "Edit(.claude/plans/*)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash(git push*)",
+        "hooks": ["~/.syndicate/hooks/pre-push-test-gate.sh"]
+      },
+      {
+        "matcher": "Bash(git add*)",
+        "hooks": ["~/.syndicate/hooks/pre-stage-secrets-gate.sh"]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash(pytest*|npm test*|go test*|mvn test*|make test*)",
+        "hooks": ["~/.syndicate/hooks/post-tool-test-sentinel.sh"]
+      }
+    ],
+    "Stop": [
+      "~/.syndicate/hooks/stop-action-bias-detector.sh"
+    ],
+    "SessionEnd": [
+      "~/.syndicate/hooks/session-end-ledger.sh"
+    ]
+  }
+}

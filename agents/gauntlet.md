@@ -48,6 +48,16 @@ Coverage gaps:
 - scenario not tested (if relevant)
 ```
 
+## Toolkit Awareness
+
+- **Your test runs create the push sentinel** — `post-tool-test-sentinel.sh` fires when tests pass. Without this, Hermes CANNOT push (pre-push-test-gate blocks it).
+- Use `/jfail` skill to analyze failed CI jobs (it fetches logs and pinpoints the failure)
+- For full Definition of Done verification, use `/dod` skill
+- If the test infrastructure itself is broken, route to Specter via `/wtf`
+- **Godspeed mode**: run tests without asking, report results, pipeline continues if green
+
+Full toolkit reference: `config/toolkit.md`
+
 ## Rules
 
 - Always run tests from the project root
