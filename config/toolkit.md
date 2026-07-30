@@ -2,7 +2,44 @@
 
 > This file tells agents what tools are available in their environment.
 > Agents should consult this to know WHEN to invoke skills, WHAT hooks will fire,
-> and WHICH MCP tools exist.
+> WHICH MCP tools exist, and WHICH deterministic workflows to execute.
+
+## Deterministic Workflows (invoke with Workflow tool)
+
+Workflows are coded JS pipelines. The control flow is deterministic — LLMs handle content,
+scripts handle routing. Use these for multi-step work instead of manual agent chaining.
+
+| Workflow | When | What It Does |
+|----------|------|-------------|
+| `syndicate-pipeline` | Code changes (implement, fix, refactor) | Scribe → Forge → Gauntlet+Athena (parallel) → Hermes → Ledger |
+| `syndicate-investigation` | Unknown problems ("why is X broken?") | Specter investigates → Loki challenges → present options |
+| `syndicate-review` | Code review | Athena 4-dimension review → Loki adversarial verify |
+| `syndicate-campaign` | Multi-issue work (4+ items) | Decompose into waves → execute each → barrier between waves |
+
+### When to Use Workflows vs Direct Routing
+
+| Situation | Use |
+|-----------|-----|
+| Multi-step code task (implement + test + review + ship) | `syndicate-pipeline` workflow |
+| Something is broken, cause unknown | `syndicate-investigation` workflow |
+| Review code changes | `syndicate-review` workflow |
+| 4+ related issues to implement | `syndicate-campaign` workflow |
+| Single-agent task (just draft a message) | Direct route to agent (no workflow) |
+| Trivial task (rename a file, check a value) | Direct route to agent (no workflow) |
+
+### Workflow Args Pattern
+
+```javascript
+Workflow({
+  name: 'syndicate-pipeline',
+  args: {
+    task: "what the user asked for",
+    context: "file paths, branch, constraints",
+    skipScribe: false,  // true for obvious tasks
+    skipTests: false    // true for docs-only changes
+  }
+})
+```
 
 ## Skills (invoke with /skill or Skill tool)
 
@@ -26,10 +63,11 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 | `/issue` | Create structured issues (plan, epic, feature, story, bug, chore) | Odin / Hermes |
 | `/ddd` | Domain-Driven Design — event storming, modeling, handoff | Scribe / Odin |
 | `/devspec` | Create Development Specification (deliverables manifest) | Scribe / Odin |
-| `/assesswaves` | Assess if work justifies wave-pattern execution | Odin |
-| `/prepwaves` | Validate specs, compute dependency waves | Odin |
-| `/nextwave` | Execute one wave (per-wave approval) | Odin |
-| `/wavemachine` | Full autonomous campaign (no per-wave gate) | Odin (godspeed mode) |
+| `/assesswaves` | Assess if work justifies wave-pattern execution (4+ issues?) | Odin |
+| `/campaign` | Multi-issue wave execution — decompose + execute in waves | Odin |
+| `/prepwaves` | Validate specs, compute dependency waves (BJ's workflow) | Odin |
+| `/nextwave` | Execute one wave with per-wave approval (BJ's workflow) | Odin |
+| `/wavemachine` | Full autonomous campaign, no per-wave gate (BJ's workflow) | Odin (godspeed mode) |
 | `/wave` | Show current wave status | Ledger / Odin |
 | `/thoughts` | Stress-test a proposal before acting | Loki |
 | `/multithread` | Parallel discussion over independent items | Odin |
