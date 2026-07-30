@@ -209,8 +209,8 @@ Syndicate/
 
 - [x] v1.0 — Agent definitions, model tiers, install script
 - [x] v2.0 — Toolkit awareness, Godspeed autonomy, safety hooks, axioms, skills, pipeline persistence
-- [ ] v2.1 — Deterministic pipeline engine (JS workflows instead of LLM orchestration)
-- [ ] v2.2 — Wave pattern integration (multi-issue campaign execution)
+- [x] v2.1 — Deterministic pipeline engine (JS workflows instead of LLM orchestration)
+- [x] v2.2 — Wave pattern integration (multi-issue campaign execution)
 - [ ] v3.0 — Visual UI (the Jarvis/galaxy dream)
 - [ ] v3.1 — markitdown integration for Cipher
 
