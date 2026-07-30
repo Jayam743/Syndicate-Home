@@ -172,11 +172,15 @@ Full reference: `config/toolkit.md`
 
 ## Model Tiers
 
-| Tier | Who | Primary | Fallback | Rule |
-|------|-----|---------|----------|------|
-| 1 — Command | Odin, Loki, Ledger, Specter | Opus 4.8 | Opus 4.7 | Never falls to Sonnet |
-| 2 — Execution | Forge, Athena, Gauntlet, Titan, Safecracker, Scribe | Opus 4.7 | Opus 4.6 | Never falls to Sonnet |
-| 3 — Utility | Hermes, Herald, Cipher | Sonnet 5 | Sonnet 4 | Never falls to Haiku |
+| Tier | Who | Primary | Fallback | Universal Fallback |
+|------|-----|---------|----------|-------------------|
+| 1 — Command | Odin, Loki, Ledger, Specter | Opus 4.8 | Opus 4.6 | Session model + warn |
+| 2 — Execution | Forge, Athena, Gauntlet, Titan, Safecracker, Scribe | Opus 4.7 | Opus 4.6 | Session model + warn |
+| 3 — Utility | Hermes, Herald, Cipher | Sonnet 4 | Session model | — |
+
+**Why Sonnet 4 for Tier 3?** Git commands, message drafting, and file conversion don't need the latest Sonnet. Sonnet 4 is plenty — same family, less cost.
+
+**Universal fallback:** If both primary AND fallback are unavailable, any agent falls to whatever model your Claude Code session is running. You get a warning about potential quality impact.
 
 ---
 

@@ -88,24 +88,25 @@ for agent in "${REPO_ROOT}/agents/"*.md; do
     model=$(grep "^model:" "$agent" | head -1 | sed 's/model: *//')
     fallback=$(grep "^fallback_model:" "$agent" | head -1 | sed 's/fallback_model: *//')
 
-    # Rule: opus must fallback to opus, sonnet to sonnet
+    # Rule: opus must fallback to opus (all opus agents → opus 4.6)
     if echo "$model" | grep -qi "opus"; then
-        if echo "$fallback" | grep -qi "sonnet\|haiku"; then
-            echo "  FAIL: ${name} — opus model has non-opus fallback (${fallback})"
+        if ! echo "$fallback" | grep -qi "opus"; then
+            echo "  FAIL: ${name} — opus model must fallback to opus (got: ${fallback})"
             ERRORS=$((ERRORS + 1))
         fi
     fi
 
+    # Rule: sonnet agents can fallback to "session" (universal fallback)
     if echo "$model" | grep -qi "sonnet"; then
-        if echo "$fallback" | grep -qi "opus\|haiku"; then
-            echo "  FAIL: ${name} — sonnet model has non-sonnet fallback (${fallback})"
+        if [ "$fallback" != "session" ] && ! echo "$fallback" | grep -qi "sonnet"; then
+            echo "  FAIL: ${name} — sonnet model must fallback to 'session' or lower sonnet (got: ${fallback})"
             ERRORS=$((ERRORS + 1))
         fi
     fi
 done
 
 if [ "$ERRORS" -eq 0 ]; then
-    echo "  OK: all fallbacks stay within model family"
+    echo "  OK: all fallbacks valid (opus→opus 4.6, sonnet→session)"
 fi
 
 # --- 4. Secrets Scan ---

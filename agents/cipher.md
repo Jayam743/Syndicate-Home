@@ -1,7 +1,7 @@
 ---
 name: cipher
-model: claude-sonnet-5
-fallback_model: claude-sonnet-4-5-20251022
+model: claude-sonnet-4-5-20251022
+fallback_model: session
 tier: 3
 description: "Document Ingestion — converts PDF, DOCX, and other formats to markdown using markitdown."
 tools:

@@ -62,13 +62,16 @@ Agent markdown files live in `agents/`. Each file defines:
 
 ## Model Tiers
 
-| Tier | Agents | Primary | Fallback |
-|------|--------|---------|----------|
-| 1 — Command | Odin, Loki, Ledger, Specter | opus 4.8 | opus 4.7 |
-| 2 — Execution | Forge, Athena, Gauntlet, Titan, Safecracker, Scribe | opus 4.7 | opus 4.6 |
-| 3 — Utility | Hermes, Herald, Cipher | sonnet 5 | sonnet 4 |
+| Tier | Agents | Primary | Fallback | Universal |
+|------|--------|---------|----------|-----------|
+| 1 — Command | Odin, Loki, Ledger, Specter | opus 4.8 | opus 4.6 | session model + warn |
+| 2 — Execution | Forge, Athena, Gauntlet, Titan, Safecracker, Scribe | opus 4.7 | opus 4.6 | session model + warn |
+| 3 — Utility | Hermes, Herald, Cipher | sonnet 4 | session model | — |
 
-**Fallback rule:** same family only. Opus never falls to sonnet. Sonnet never falls to haiku.
+**Fallback rules:**
+- All Opus agents → Opus 4.6 (one shared fallback, no intermediate steps)
+- Sonnet agents → session model (they're already running light work)
+- Universal fallback: if everything is unavailable, use session model + warn user
 
 ## Safety Guards
 

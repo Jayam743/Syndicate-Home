@@ -1,7 +1,7 @@
 ---
 name: hermes
-model: claude-sonnet-5
-fallback_model: claude-sonnet-4-5-20251022
+model: claude-sonnet-4-5-20251022
+fallback_model: session
 tier: 3
 description: "Git Ops — handles branches, commits, PRs/MRs, merges. The messenger between your code and the remote."
 tools:
