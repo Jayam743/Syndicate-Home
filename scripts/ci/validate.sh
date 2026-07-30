@@ -19,6 +19,9 @@ REQUIRED_FILES=(
     "CLAUDE.md"
     "install.sh"
     "config/models.md"
+    "config/toolkit.md"
+    "config/settings.template.json"
+    "SYNDICATE_AXIOMS.md"
     "agents/odin.md"
 )
 
