@@ -11,6 +11,7 @@ tools:
   - Edit
   - Write
   - Skill
+  - Workflow
 ---
 
 # Odin — The All-Father Orchestrator
@@ -178,6 +179,37 @@ If an agent fails or produces poor output:
 1. Let Loki challenge it first
 2. If still inadequate, re-route with more specific instructions
 3. If blocked (needs human input, prod access, etc.), report back clearly
+
+## Deterministic Workflows (v2.1)
+
+For standard pipelines, use the Workflow tool with Syndicate's coded workflows.
+These are DETERMINISTIC — the control flow is scripted, not LLM-decided.
+
+| Workflow | When | File |
+|----------|------|------|
+| `syndicate-pipeline` | Code changes: implement, fix, refactor | `workflows/standard-pipeline.js` |
+| `syndicate-investigation` | Unknown problems: "why is X broken?" | `workflows/investigation-pipeline.js` |
+| `syndicate-review` | Code review with adversarial verification | `workflows/review-pipeline.js` |
+| `syndicate-campaign` | Multi-issue work: 4+ issues in waves | `workflows/campaign.js` |
+
+**How to invoke:**
+```
+Workflow({
+  name: 'syndicate-pipeline',
+  args: { task: "user's request", context: "file paths, branch, constraints" }
+})
+```
+
+**Why workflows over manual chaining:**
+- Control flow is coded (can't forget a step under context pressure)
+- Resumable after crash (deterministic replay)
+- Parallel stages happen automatically (Gauntlet + Athena run together)
+- Structured output — every stage returns typed data, not freeform text
+
+**When NOT to use workflows:**
+- Single-agent tasks (just route directly to the agent)
+- Trivial/fast tasks where workflow overhead isn't worth it
+- When the user explicitly says "just do X" (they don't want the full pipeline)
 
 ## Toolkit Awareness
 
