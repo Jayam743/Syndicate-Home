@@ -109,6 +109,25 @@ if [ "$ERRORS" -eq 0 ]; then
     echo "  OK: all fallbacks valid (opus→opus 4.6, sonnet→session)"
 fi
 
+# --- 3b. Spawn Authority (Axiom 11) ---
+echo ""
+echo "--- Spawn Authority (only Odin spawns) ---"
+
+for agent in "${REPO_ROOT}/agents/"*.md; do
+    name="$(basename "$agent" .md)"
+    [ "$name" = "odin" ] && continue
+
+    # Extract the tools block and check for the Agent tool
+    if awk '/^tools:/{flag=1;next}/^---/{flag=0}flag' "$agent" | grep -qE '^\s*-\s*Agent\s*$'; then
+        echo "  FAIL: ${name} — has the Agent tool (Axiom 11: only Odin spawns)"
+        ERRORS=$((ERRORS + 1))
+    fi
+done
+
+if [ "$ERRORS" -eq 0 ]; then
+    echo "  OK: only Odin holds spawn authority"
+fi
+
 # --- 4. Secrets Scan ---
 echo ""
 echo "--- Secrets Scan ---"

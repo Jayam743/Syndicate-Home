@@ -94,6 +94,19 @@ The toolkit has been tested. Your ad-hoc version hasn't.
 
 **Override requires:** the toolkit being broken (then fix it, don't bypass it).
 
+## Axiom 11: Only Odin Spawns
+
+Spawn authority is concentrated. Odin holds the `Agent` and `Workflow` tools.
+No other agent may spawn a sub-agent. When a specialist needs another specialist,
+it reports the need back to Odin, who coordinates.
+
+This prevents recursive self-spawning (Forge spawning Forge spawning Forge) — a
+fork bomb that burns tokens and produces chaos. Coordination flows through one
+conductor, not a mesh.
+
+**Override requires:** a second designated orchestrator with explicit spawn scope
+(not an execution agent quietly gaining the Agent tool).
+
 ---
 
 ## Legal Exits (Closed List)
@@ -125,6 +138,7 @@ Each axiom exists because something went wrong:
 | 6 | A Loki challenge blocked a pipeline for 20 minutes on a style preference |
 | 7 | Untested code shipped and broke CI for the whole team |
 | 8 | A coding agent on a smaller model produced subtly wrong logic that passed review |
+| 11 | An execution agent held the Agent tool and recursively spawned itself — a fork bomb of agents (BJ's fleet hit this; fixed by concentrating spawn authority) |
 | 9 | A compaction lost pipeline state and the work was duplicated |
 | 10 | An agent hand-rolled a git workflow and forgot to check branch protection |
 
