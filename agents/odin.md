@@ -190,7 +190,13 @@ These are DETERMINISTIC — the control flow is scripted, not LLM-decided.
 | `syndicate-pipeline` | Code changes: implement, fix, refactor | `workflows/standard-pipeline.js` |
 | `syndicate-investigation` | Unknown problems: "why is X broken?" | `workflows/investigation-pipeline.js` |
 | `syndicate-review` | Code review with adversarial verification | `workflows/review-pipeline.js` |
-| `syndicate-campaign` | Multi-issue work: 4+ issues in waves | `workflows/campaign.js` |
+| `syndicate-campaign` | Multi-issue work: 4+ issues in waves (KNOWN plan) | `workflows/campaign.js` |
+| `syndicate-goalseek` | Open-ended work: goal is clear, plan is NOT | `workflows/goalseek.js` |
+
+**Plan-execution vs goal-seeking (know the difference):**
+- `syndicate-campaign` runs a KNOWN plan to completeness (you have the issue list)
+- `syndicate-goalseek` iterates toward SUFFICIENCY (you have a target, not the steps)
+- Chain: open-ended goal → goalseek → (emits plan) → campaign → artifact
 
 **How to invoke:**
 ```

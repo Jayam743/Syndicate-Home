@@ -14,7 +14,8 @@ scripts handle routing. Use these for multi-step work instead of manual agent ch
 | `syndicate-pipeline` | Code changes (implement, fix, refactor) | Scribe → Forge → Gauntlet+Athena (parallel) → Hermes → Ledger |
 | `syndicate-investigation` | Unknown problems ("why is X broken?") | Specter investigates → Loki challenges → present options |
 | `syndicate-review` | Code review | Athena 4-dimension review → Loki adversarial verify |
-| `syndicate-campaign` | Multi-issue work (4+ items) | Decompose into waves → execute each → barrier between waves |
+| `syndicate-campaign` | Multi-issue work (4+ items), KNOWN plan | Decompose into waves → execute (serial default, fan when safe) → barrier |
+| `syndicate-goalseek` | Open-ended: goal clear, plan NOT known | probe → judge sufficiency → steer → journal, until sufficient or escalation |
 
 ### When to Use Workflows vs Direct Routing
 
@@ -23,7 +24,8 @@ scripts handle routing. Use these for multi-step work instead of manual agent ch
 | Multi-step code task (implement + test + review + ship) | `syndicate-pipeline` workflow |
 | Something is broken, cause unknown | `syndicate-investigation` workflow |
 | Review code changes | `syndicate-review` workflow |
-| 4+ related issues to implement | `syndicate-campaign` workflow |
+| 4+ related issues to implement (known list) | `syndicate-campaign` workflow |
+| Goal is clear but steps are unknown (research, "figure out X") | `syndicate-goalseek` workflow |
 | Single-agent task (just draft a message) | Direct route to agent (no workflow) |
 | Trivial task (rename a file, check a value) | Direct route to agent (no workflow) |
 
@@ -65,6 +67,7 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 | `/devspec` | Create Development Specification (deliverables manifest) | Scribe / Odin |
 | `/assesswaves` | Assess if work justifies wave-pattern execution (4+ issues?) | Odin |
 | `/campaign` | Multi-issue wave execution — decompose + execute in waves | Odin |
+| `/goalseek` | Open-ended goal-seeking — probe/judge/steer/journal loop | Odin |
 | `/prepwaves` | Validate specs, compute dependency waves (BJ's workflow) | Odin |
 | `/nextwave` | Execute one wave with per-wave approval (BJ's workflow) | Odin |
 | `/wavemachine` | Full autonomous campaign, no per-wave gate (BJ's workflow) | Odin (godspeed mode) |
