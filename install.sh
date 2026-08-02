@@ -142,9 +142,13 @@ echo "━━━ Loki + Evidence ━━━"
 mkdir -p "${SCRIPT_DIR}/loki/logs"
 mkdir -p "${SYNDICATE_DIR}/evidence"
 mkdir -p "${SYNDICATE_DIR}/pipelines"
+mkdir -p "${SYNDICATE_DIR}/conception"
+mkdir -p "${SYNDICATE_DIR}/investigations"
 echo "  ✓ loki/logs/ (improvement observations)"
 echo "  ✓ ~/.syndicate/evidence/ (pipeline evidence packets)"
 echo "  ✓ ~/.syndicate/pipelines/ (pipeline state persistence)"
+echo "  ✓ ~/.syndicate/conception/ (Muse decision ledgers)"
+echo "  ✓ ~/.syndicate/investigations/ (Specter flight logs)"
 echo ""
 
 # --- 6. Install markitdown (for Cipher) ---

@@ -2,7 +2,7 @@
 
 > *"Every heist needs a crew. Every crew needs a plan. Every plan needs an Odin."*
 
-A multi-agent orchestration system for Claude Code. Thirteen specialists, one orchestrator, zero wasted keystrokes.
+A multi-agent orchestration system for Claude Code. Thirteen specialists, one orchestrator, zero wasted keystrokes. (Odin routes; the crew executes.)
 
 **Two modes:**
 - **Layered** — installs on top of [BJ's CC Workflow](https://github.com/Wave-Engineering/claudecode-workflow). Detects it automatically, layers agents on top, inherits all safety hooks.
@@ -39,6 +39,7 @@ A multi-agent orchestration system for Claude Code. Thirteen specialists, one or
 | Agent | Role | Tier |
 |-------|------|------|
 | **Odin** | Orchestrator — routes, dispatches, monitors | 1 |
+| **Muse** | Conception Partner — shapes fuzzy ideas into designed intent | 1 |
 | **Scribe** | Prompt Crafter — refines intent into surgical briefings | 2 |
 | **Loki** | Devil's Advocate — challenges, observes, proposes improvements | 1 |
 | **Ledger** | Activity Tracker — logs work as it happens, generates reports | 1 |
@@ -174,7 +175,7 @@ Full reference: `config/toolkit.md`
 
 | Tier | Who | Primary | Fallback | Universal Fallback |
 |------|-----|---------|----------|-------------------|
-| 1 — Command | Odin, Loki, Ledger, Specter | Opus 4.8 | Opus 4.6 | Session model + warn |
+| 1 — Command | Odin, Muse, Loki, Ledger, Specter | Opus 4.8 | Opus 4.6 | Session model + warn |
 | 2 — Execution | Forge, Athena, Gauntlet, Titan, Safecracker, Scribe | Opus 4.7 | Opus 4.6 | Session model + warn |
 | 3 — Utility | Hermes, Herald, Cipher | Sonnet 4 | Session model | — |
 

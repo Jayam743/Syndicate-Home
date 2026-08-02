@@ -16,6 +16,7 @@
 | **Loki** | 1 | Opus 4.8 | Opus 4.6 | Argumentation and pattern recognition |
 | **Ledger** | 1 | Opus 4.8 | Opus 4.6 | Full context comprehension for tracking |
 | **Specter** | 1 | Opus 4.8 | Opus 4.6 | Multi-angle investigation needs strongest reasoning |
+| **Muse** | 1 | Opus 4.8 | Opus 4.6 | Conception/reframing needs strongest reasoning |
 | **Forge** | 2 | Opus 4.7 | Opus 4.6 | Code quality needs strong model |
 | **Athena** | 2 | Opus 4.7 | Opus 4.6 | Review accuracy is critical |
 | **Gauntlet** | 2 | Opus 4.7 | Opus 4.6 | Test logic needs reasoning |

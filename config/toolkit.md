@@ -50,6 +50,7 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 
 | Skill | When to Use | Who Typically Invokes |
 |-------|-------------|----------------------|
+| `/muse` | Conception — shape a fuzzy idea into designed intent before building | Odin (routes to Muse) |
 | `/engage` | Session start — read CLAUDE.md, confirm rules, load plan | Odin (auto on session start) |
 | `/precheck` | Before ANY commit — branch/issue validation, review, checklist | Hermes (mandatory gate) |
 | `/scp` | Stage + commit + push in one flow | Hermes |

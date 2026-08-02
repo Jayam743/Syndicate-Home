@@ -10,7 +10,14 @@ deciding what to add to `~/.claude/settings.json` allowedTools.
 
 ### Odin (orchestrator)
 - Spawns other agents via Agent tool (always allowed)
+- Runs Workflows (standard-pipeline, campaign, goalseek, etc.)
 - No direct system commands
+
+### Muse (conception partner)
+- File reads (context for shaping)
+- File writes (decision ledger only — `~/.syndicate/conception/`)
+- `git log`, `git diff` (understanding what exists before shaping)
+- No code changes, no spawning (Axiom 11)
 
 ### Scribe (prompt crafter)
 - `git branch --show-current` (context gathering)

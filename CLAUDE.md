@@ -64,7 +64,7 @@ Agent markdown files live in `agents/`. Each file defines:
 
 | Tier | Agents | Primary | Fallback | Universal |
 |------|--------|---------|----------|-----------|
-| 1 — Command | Odin, Loki, Ledger, Specter | opus 4.8 | opus 4.6 | session model + warn |
+| 1 — Command | Odin, Muse, Loki, Ledger, Specter | opus 4.8 | opus 4.6 | session model + warn |
 | 2 — Execution | Forge, Athena, Gauntlet, Titan, Safecracker, Scribe | opus 4.7 | opus 4.6 | session model + warn |
 | 3 — Utility | Hermes, Herald, Cipher | sonnet 4 | session model | — |
 
