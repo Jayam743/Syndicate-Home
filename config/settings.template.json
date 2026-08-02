@@ -57,7 +57,14 @@
       }
     ],
     "Stop": [
-      "~/.syndicate/hooks/stop-action-bias-detector.sh"
+      "~/.syndicate/hooks/godspeed.sh",
+      "~/.syndicate/hooks/precheck-asking-detector.sh"
+    ],
+    "SessionStart": [
+      "~/.syndicate/hooks/session-start-syndicate.sh"
+    ],
+    "PostCompact": [
+      "~/.syndicate/hooks/post-compact-reread.sh"
     ],
     "SessionEnd": [
       "~/.syndicate/hooks/session-end-ledger.sh"

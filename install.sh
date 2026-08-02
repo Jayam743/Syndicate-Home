@@ -78,44 +78,79 @@ else
 fi
 echo ""
 
-# --- 3. Install Hooks (only if BJ's workflow is NOT present) ---
+# --- 3. Install Hooks ---
 echo "━━━ Hooks ━━━"
+
+# Hooks live in the repo but are referenced from ~/.syndicate/hooks/ so that
+# settings.json paths are stable regardless of where the repo is cloned.
+SYNDICATE_HOOKS="${SYNDICATE_DIR}/hooks"
+mkdir -p "$SYNDICATE_HOOKS"
+find "${SCRIPT_DIR}/hooks" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
+for hook in "${SCRIPT_DIR}/hooks/"*.sh; do
+    hname="$(basename "$hook")"
+    htarget="${SYNDICATE_HOOKS}/${hname}"
+    [ -L "$htarget" ] && rm "$htarget"
+    ln -sf "$hook" "$htarget"
+done
+echo "  ✓ Hooks linked to ~/.syndicate/hooks/"
+
+SETTINGS_FILE="${CLAUDE_DIR}/settings.json"
+SS_HOOK="${SYNDICATE_HOOKS}/session-start-syndicate.sh"
+
+# The SessionStart hook is what makes Syndicate a SELF-SYSTEM — it injects the
+# dispatch doctrine so the session self-routes in ANY project. Register it
+# additively (never clobber existing hooks).
+# Register a hook additively in Claude Code's object form:
+#   { "matcher": "<m>", "hooks": [ { "type": "command", "command": "<path>" } ] }
+# Matches against the nested command string so it's idempotent AND compatible
+# with existing object-form entries (like BJ's workflow uses).
+#   $1 = event name (SessionStart / SessionEnd / ...)
+#   $2 = matcher (e.g. "startup"; use "" for events that take no matcher)
+#   $3 = command path
+#   $4 = human label for the echo
+register_hook() {
+    local event="$1" matcher="$2" cmd="$3" label="$4" tmp
+    # Already present anywhere in this event's tree?
+    if jq -e --arg c "$cmd" --arg ev "$event" \
+        '[(.hooks[$ev] // [])[] | (.command? // (.hooks[]?.command // empty))] | index($c)' \
+        "$SETTINGS_FILE" >/dev/null 2>&1; then
+        echo "  ○ ${label} already registered"
+        return
+    fi
+    tmp="$(mktemp)"
+    jq --arg ev "$event" --arg m "$matcher" --arg c "$cmd" '
+        .hooks[$ev] = ((.hooks[$ev] // []) + [
+            ($m | if . == "" then {hooks:[{type:"command",command:$c}]}
+                  else {matcher:$m, hooks:[{type:"command",command:$c}]} end)
+        ])' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
+    echo "  ✓ ${label} registered"
+}
+
+register_sessionstart() {
+    if ! command -v jq &>/dev/null; then
+        echo "  ⚠  jq not found — add these to ${SETTINGS_FILE} manually (object form):"
+        echo "     SessionStart(matcher=startup) → ${SS_HOOK}"
+        echo "     SessionEnd → ${SYNDICATE_HOOKS}/session-end-ledger.sh"
+        return
+    fi
+    [ -f "$SETTINGS_FILE" ] || echo '{}' > "$SETTINGS_FILE"
+
+    register_hook "SessionStart" "startup" "$SS_HOOK" "SessionStart self-dispatch (all projects)"
+    register_hook "SessionEnd" "" "${SYNDICATE_HOOKS}/session-end-ledger.sh" "SessionEnd ledger hook"
+}
+
 if [ "$BJ_DETECTED" = true ]; then
-    echo "  ○ SKIP: BJ's workflow provides hooks — using those"
-    echo "  ○ Syndicate's session-end-ledger.sh is additive (check settings.json)"
-
-    # Just ensure the ledger hook is registered if not already
-    SETTINGS_FILE="${CLAUDE_DIR}/settings.json"
-    if [ -f "$SETTINGS_FILE" ]; then
-        if ! grep -q "session-end-ledger" "$SETTINGS_FILE" 2>/dev/null; then
-            echo "  ℹ  NOTE: Add session-end-ledger.sh to your settings.json SessionEnd hooks"
-            echo "     Path: ${SCRIPT_DIR}/hooks/session-end-ledger.sh"
-        fi
-    fi
+    echo "  Layered mode: BJ's safety hooks stay. Adding Syndicate's self-dispatch additively."
+    register_sessionstart
+    echo "  ○ Safety gates (test/secrets/prod) come from BJ's workflow"
 else
-    # Standalone mode: install Syndicate's own safety hooks
-    echo "  Installing Syndicate safety hooks..."
-    HOOKS_DIR="${SCRIPT_DIR}/hooks"
-    mkdir -p "$HOOKS_DIR"
-
-    # Make hooks executable
-    find "$HOOKS_DIR" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
-
+    echo "  Standalone mode: registering Syndicate's own hooks."
+    register_sessionstart
+    echo "  ✓ session-start-syndicate.sh (self-dispatch doctrine injection)"
     echo "  ✓ session-end-ledger.sh (Ledger live tracking)"
-
-    if [ -f "${HOOKS_DIR}/pre-push-test-gate.sh" ]; then
-        echo "  ✓ pre-push-test-gate.sh (blocks push without tests)"
-    fi
-    if [ -f "${HOOKS_DIR}/pre-stage-secrets-gate.sh" ]; then
-        echo "  ✓ pre-stage-secrets-gate.sh (blocks staging secrets)"
-    fi
-    if [ -f "${HOOKS_DIR}/godspeed.sh" ]; then
-        echo "  ✓ godspeed.sh (autonomy mandate system)"
-    fi
-
-    echo ""
-    echo "  ⚠  You need to add these hooks to ~/.claude/settings.json manually."
-    echo "     See: config/settings.template.json for the full configuration."
+    echo "  ✓ pre-push-test-gate.sh, pre-stage-secrets-gate.sh, godspeed.sh"
+    echo "  ℹ  For the safety GATES (test/secrets/stop), also merge the PreToolUse/"
+    echo "     PostToolUse/Stop blocks from config/settings.template.json into ${SETTINGS_FILE}"
 fi
 echo ""
 

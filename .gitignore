@@ -12,3 +12,6 @@ Thumbs.db
 *~
 .vscode/
 .idea/
+
+# WTF flight-recorder session data (local, transient)
+.wtf/
