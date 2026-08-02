@@ -67,6 +67,24 @@ The workflow runs autonomously. Each wave:
 
 Between waves: barrier ensures wave N completes before wave N+1 starts.
 
+### Dispatch Classification (serial vs parallel within a wave)
+
+Items in a wave have no dependencies on each other — but that does NOT mean they
+should always run in parallel. The decomposition classifies each wave's dispatch:
+
+| Dispatch | When | Behavior |
+|----------|------|----------|
+| `serialize` | **Default.** Width-1 wave, overlapping files, or any doubt | Items run one at a time |
+| `fan` | Items are VERIFIED independent (disjoint files) AND mechanical | Items run concurrently |
+| `serialize-preferred` | Items look independent but involve discovery/learning | Serial, so early findings inform later items |
+
+**The bias is asymmetric (borrowed from BJ's dispatch model):**
+> A wrong `serialize` only costs wall-clock. A wrong `fan` can invalidate the whole
+> wave — two agents editing overlapping files clobber each other's work.
+
+So the campaign defaults to serial and only fans out when it's confident the items
+are truly independent. Width-1 waves are always serial regardless of classification.
+
 ### 4. Final Report
 
 ```
@@ -76,9 +94,9 @@ Issues: 4/4 complete
 Waves: 3 (topology: mixed)
 PRs created: #147, #148, #149, #150
 
-Wave 1 (parallel): #123 ✓, #126 ✓
-Wave 2 (serial):   #124 ✓
-Wave 3 (serial):   #125 ✓
+Wave 1 (fan):       #123 ✓, #126 ✓   (verified independent + mechanical)
+Wave 2 (serialize): #124 ✓
+Wave 3 (serialize): #125 ✓
 
 Concerns raised: 1 (non-blocking, logged)
 Duration: ~12 minutes

@@ -4,7 +4,7 @@ export const meta = {
   whenToUse: 'When tackling 4+ related issues/tasks that can be batched into dependency waves',
   phases: [
     { title: 'Decompose', detail: 'Break work into dependency-ordered waves' },
-    { title: 'Execute', detail: 'Run each wave (serial waves, parallel items within)' },
+    { title: 'Execute', detail: 'Run each wave; dispatch serial by default, fan out only when verified safe' },
     { title: 'Report', detail: 'Summary of campaign results' }
   ]
 }
@@ -52,12 +52,25 @@ const decomposition = await agent(
   - Wave 1: issues with NO dependencies (can start immediately)
   - Wave 2: issues that depend ONLY on Wave 1 items
   - Wave N: issues that depend on items in waves 1..N-1
-  - Within a wave, items have NO inter-dependencies (can run in parallel)
+  - Within a wave, items have NO inter-dependencies
   - Maximum ${maxWaves} waves — if more are needed, something is wrong
   - If circular dependencies exist, flag them
 
+  DISPATCH CLASSIFICATION (per wave) — this decides serial vs parallel execution.
+  The bias is ASYMMETRIC: default to serial, only fan out when verified safe.
+  A wrong "serialize" costs wall-clock; a wrong "fan" can invalidate the whole
+  wave (two agents editing overlapping files, clobbering each other).
+
+  Classify each wave's dispatch as:
+  - "serialize" — width-1 wave (only one item), OR items touch overlapping
+    files/modules, OR any doubt about independence. THIS IS THE DEFAULT.
+  - "fan" — items are VERIFIED independent (disjoint files) AND mechanical
+    (well-specified, low learning-potential). Only choose this when confident.
+  - "serialize-preferred" — items look independent but involve learning/discovery
+    where one item's findings might inform another. Surface the decision.
+
   Return a JSON object with:
-  - waves: array of {waveNumber, items: array of issue IDs in this wave}
+  - waves: array of {waveNumber, items: array of issue IDs, dispatch, dispatchReason}
   - topology: "serial" | "parallel" | "mixed" (what the dependency graph looks like)
   - circularDeps: array of issue IDs involved in cycles (empty if none)
   - estimatedEffort: string (total time estimate)
@@ -74,7 +87,9 @@ const decomposition = await agent(
             type: 'object',
             properties: {
               waveNumber: { type: 'number' },
-              items: { type: 'array', items: { type: 'string' } }
+              items: { type: 'array', items: { type: 'string' } },
+              dispatch: { type: 'string', enum: ['serialize', 'fan', 'serialize-preferred'] },
+              dispatchReason: { type: 'string' }
             },
             required: ['waveNumber', 'items']
           }
@@ -112,64 +127,84 @@ phase('Execute')
 const waveResults = []
 let campaignFailed = false
 
+// Execute a single campaign item (implement issue end-to-end).
+// Used by both serial and parallel dispatch paths.
+const executeItem = (issue, waveNumber) =>
+  agent(
+    `You are executing a campaign item. Implement this issue end-to-end.
+
+    ISSUE: [${issue.id}] ${issue.title}
+    DESCRIPTION: ${issue.description || 'see title'}
+    REPO: ${args.repo || 'current directory'}
+    BASE BRANCH: ${args.branch || 'current branch'}
+
+    Steps:
+    1. Create a feature branch: feat/${issue.id}-${issue.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)}
+    2. Implement the change
+    3. Run tests
+    4. Commit with conventional format: feat(scope): description (Closes #${issue.id})
+    5. Push and create PR/MR
+
+    Return a JSON object with:
+    - issueId: "${issue.id}"
+    - status: "complete" | "failed" | "blocked"
+    - branch: string (branch name created)
+    - filesModified: array of file paths
+    - commitMessage: string
+    - prUrl: string or null
+    - testsPassed: boolean
+    - error: string or null (if failed/blocked)`,
+    {
+      label: `wave${waveNumber}:${issue.id}`,
+      phase: 'Execute',
+      schema: {
+        type: 'object',
+        properties: {
+          issueId: { type: 'string' },
+          status: { type: 'string' },
+          branch: { type: 'string' },
+          filesModified: { type: 'array', items: { type: 'string' } },
+          commitMessage: { type: 'string' },
+          prUrl: { type: ['string', 'null'] },
+          testsPassed: { type: 'boolean' },
+          error: { type: ['string', 'null'] }
+        },
+        required: ['issueId', 'status']
+      }
+    }
+  )
+
 for (const wave of decomposition.waves) {
   if (campaignFailed) break
 
-  log(`═══ Wave ${wave.waveNumber}/${decomposition.waves.length}: ${wave.items.length} item(s) ═══`)
-
   const waveIssues = wave.items.map(id => issues.find(i => i.id === id)).filter(Boolean)
 
-  // Execute items within this wave in parallel
-  const itemResults = await parallel(
-    waveIssues.map(issue => () =>
-      agent(
-        `You are executing a campaign item. Implement this issue end-to-end.
+  // Dispatch decision (Axiom: default serial, fan only when verified safe).
+  // Width-1 waves are always serial regardless of classification.
+  const dispatch = waveIssues.length <= 1 ? 'serialize' : (wave.dispatch || 'serialize')
+  const fanOut = dispatch === 'fan'
 
-        ISSUE: [${issue.id}] ${issue.title}
-        DESCRIPTION: ${issue.description || 'see title'}
-        REPO: ${args.repo || 'current directory'}
-        BASE BRANCH: ${args.branch || 'current branch'}
+  log(`═══ Wave ${wave.waveNumber}/${decomposition.waves.length}: ${waveIssues.length} item(s), dispatch=${dispatch} ═══`)
+  if (wave.dispatchReason) log(`  ${wave.dispatchReason}`)
+  if (dispatch === 'serialize-preferred') {
+    log(`  NOTE: items look independent but involve discovery — running serial so findings can inform later items`)
+  }
 
-        Steps:
-        1. Create a feature branch: feat/${issue.id}-${issue.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)}
-        2. Implement the change
-        3. Run tests
-        4. Commit with conventional format: feat(scope): description (Closes #${issue.id})
-        5. Push and create PR/MR
-
-        Return a JSON object with:
-        - issueId: "${issue.id}"
-        - status: "complete" | "failed" | "blocked"
-        - branch: string (branch name created)
-        - filesModified: array of file paths
-        - commitMessage: string
-        - prUrl: string or null
-        - testsPassed: boolean
-        - error: string or null (if failed/blocked)`,
-        {
-          label: `wave${wave.waveNumber}:${issue.id}`,
-          phase: 'Execute',
-          schema: {
-            type: 'object',
-            properties: {
-              issueId: { type: 'string' },
-              status: { type: 'string' },
-              branch: { type: 'string' },
-              filesModified: { type: 'array', items: { type: 'string' } },
-              commitMessage: { type: 'string' },
-              prUrl: { type: ['string', 'null'] },
-              testsPassed: { type: 'boolean' },
-              error: { type: ['string', 'null'] }
-            },
-            required: ['issueId', 'status']
-          }
-        }
-      )
-    )
-  )
+  let itemResults
+  if (fanOut) {
+    // Verified-independent + mechanical → run concurrently
+    itemResults = await parallel(waveIssues.map(issue => () => executeItem(issue, wave.waveNumber)))
+  } else {
+    // Default: serial. Wall-clock cost, but no risk of overlapping-file clobber.
+    itemResults = []
+    for (const issue of waveIssues) {
+      itemResults.push(await executeItem(issue, wave.waveNumber))
+    }
+  }
 
   const waveReport = {
     waveNumber: wave.waveNumber,
+    dispatch,
     items: itemResults.filter(Boolean),
     failed: itemResults.filter(r => r && r.status === 'failed'),
     succeeded: itemResults.filter(r => r && r.status === 'complete'),
@@ -221,6 +256,7 @@ return {
   prs: allPRs,
   waveDetails: waveResults.map(w => ({
     wave: w.waveNumber,
+    dispatch: w.dispatch,
     succeeded: w.succeeded.map(s => s.issueId),
     failed: w.failed.map(f => ({ id: f.issueId, error: f.error })),
     blocked: w.blocked.map(b => ({ id: b.issueId, error: b.error }))
