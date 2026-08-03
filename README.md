@@ -155,7 +155,13 @@ cd ~/Syndicate  # or wherever you cloned it
 - `~/.claude/agents/` ← Syndicate agent definitions (symlinked)
 - `~/.syndicate/` ← Ledger tracking, evidence packets, pipeline state
 
-**Uninstall:** delete symlinks from `~/.claude/agents/` and remove `~/.syndicate/`.
+**Uninstall:** run `./uninstall.sh`. It's fully reversible and surgical:
+- Removes only Syndicate's agent/skill symlinks (yours and BJ's are untouched)
+- Strips only Syndicate's hook entries from `settings.json` (backs it up first;
+  BJ's hooks and your own are preserved)
+- **Keeps your data by default** — ledger, evidence, conception ledgers
+- **Never touches** your session history in `~/.claude/projects/`
+- `./uninstall.sh --purge` also removes `~/.syndicate/` data (asks first)
 
 ---
 
