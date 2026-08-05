@@ -13,7 +13,7 @@ scripts handle routing. Use these for multi-step work instead of manual agent ch
 |----------|------|-------------|
 | `syndicate-pipeline` | Code changes (implement, fix, refactor) | Scribe → Forge → Gauntlet+Athena (parallel) → Hermes → Ledger |
 | `syndicate-investigation` | Unknown problems ("why is X broken?") | Specter investigates → Loki challenges → present options |
-| `syndicate-review` | Code review | Athena 4-dimension review → Loki adversarial verify |
+| `syndicate-review` | Code review | Two tracks: Athena bug-finding (4 dims) + omission-verification (checklist from acceptance criteria → closed per-item lookups) → Loki adversarial verify |
 | `syndicate-campaign` | Multi-issue work (4+ items), KNOWN plan | Decompose into waves → execute (serial default, fan when safe) → barrier |
 | `syndicate-goalseek` | Open-ended: goal clear, plan NOT known | probe → judge sufficiency → steer → journal, until sufficient or escalation |
 

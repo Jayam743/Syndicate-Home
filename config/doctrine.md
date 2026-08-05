@@ -46,6 +46,11 @@ Match the request against these signals, top to bottom. First match wins.
 If two classifications fit, prefer the one HIGHER in the table (conception and
 investigation come before execution — shape/diagnose before you build).
 
+**For review:** if the change has acceptance criteria (an issue, a devspec section,
+or even the task statement), pass them as the workflow's `acceptanceCriteria` arg.
+That turns on omission-verification — the review then checks not just for bugs
+present, but for requirements ABSENT (the more common cause of shipped-but-broken).
+
 ## Step 1.5: Pull prior context (recall)
 
 For **investigate**, **goal-seek**, **code-change**, **review**, and **campaign**
