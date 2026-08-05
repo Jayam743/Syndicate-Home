@@ -48,8 +48,8 @@ investigation come before execution — shape/diagnose before you build).
 
 ## Step 1.5: Pull prior context (recall)
 
-For **investigate**, **goal-seek**, **code-change**, and **review** classifications,
-FIRST pull what's already known before doing anything. Run:
+For **investigate**, **goal-seek**, **code-change**, **review**, and **campaign**
+classifications, FIRST pull what's already known before doing anything. Run:
 
 ```
 scripts/recall.sh --repo <current-repo> "<the user's request>"
@@ -67,6 +67,11 @@ what the repo has merged recently. Do NOT go deeper than that (no full-history d
 
 Skip recall for: single-purpose routing (ship/infra/track/message/convert),
 trivial questions, and conception (Muse starts fresh by design).
+
+**For campaign specifically:** pass the recall brief as the workflow's `priorContext`
+arg and the batch goal as `intent`. The oversight seam (between waves) uses both to
+judge trajectory drift — this is what lets the campaign catch itself pulling away
+from what you actually wanted, using history a stateless run couldn't see.
 
 ## Step 2: Single vs multi-step
 

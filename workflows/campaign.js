@@ -5,6 +5,7 @@ export const meta = {
   phases: [
     { title: 'Decompose', detail: 'Break work into dependency-ordered waves' },
     { title: 'Execute', detail: 'Run each wave; dispatch serial by default, fan out only when verified safe' },
+    { title: 'Oversee', detail: 'Between waves: judge trajectory against intent + prior sessions; HOLD if drifting' },
     { title: 'Report', detail: 'Summary of campaign results' }
   ]
 }
@@ -17,18 +18,31 @@ export const meta = {
 //   branch: string — base branch to work from
 //   autoMerge: boolean — auto-merge small PRs (requires all gates green)
 //   maxWaves: number — safety cap on wave count (default 5)
+//   intent: string — the campaign's overall goal (what the whole batch is FOR).
+//           Used by the oversight seam to judge trajectory drift.
+//   priorContext: string — recall brief (relevant past sessions + merge history).
+//           Odin fills this from scripts/recall.sh so oversight judges against
+//           history, not just this run. This is what BJ's stateless design can't do.
+//   overseeConfidenceFloor: number 0-100 — HOLD if oversight confidence drops
+//           below this (default 50).
 //
 // The wave pattern:
 // 1. Decompose issues into dependency-ordered waves
 // 2. Within each wave, items can run in parallel (no inter-dependencies)
 // 3. Between waves, there's a barrier (wave N+1 depends on wave N)
 // 4. Each item goes through the standard pipeline
-// 5. Campaign completes when all waves done
+// 5. BETWEEN waves, an oversight SEAM judges trajectory (control flow is code;
+//    judgment is a seam — the overseer is a distinct campaign-altitude judge,
+//    NOT one of the execution agents reused)
+// 6. Campaign completes when all waves done, or HOLDs if oversight flags drift
 
 phase('Decompose')
 
 const issues = args.issues || []
 const maxWaves = args.maxWaves || 5
+const campaignIntent = args.intent || '(intent not stated — infer from the issue set)'
+const priorContext = args.priorContext || '(no prior context supplied)'
+const confidenceFloor = args.overseeConfidenceFloor || 50
 
 if (issues.length === 0) {
   log('No issues provided — campaign cannot start')
@@ -126,6 +140,7 @@ phase('Execute')
 
 const waveResults = []
 let campaignFailed = false
+let campaignHeld = null   // set by the oversight seam when trajectory drifts
 
 // Execute a single campaign item (implement issue end-to-end).
 // Used by both serial and parallel dispatch paths.
@@ -224,6 +239,96 @@ for (const wave of decomposition.waves) {
       campaignFailed = true
     }
   }
+  if (campaignFailed) break
+
+  // ── OVERSIGHT SEAM ──────────────────────────────────────────────
+  // "Control flow is code; judgment is a seam." After a wave PASSES, a distinct
+  // campaign-altitude judge (NOT reused from the execution agents) asks: given
+  // the intent, the trajectory so far, AND prior related sessions, is it safe to
+  // continue to the next wave? This is where we beat BJ — the overseer sees our
+  // recall/history context, which his stateless-container design can't provide.
+  //
+  // Skip after the final wave (nothing to gate) and when the campaign already failed.
+  const isLastWave = wave.waveNumber >= decomposition.waves.length
+  if (!isLastWave) {
+    const trajectory = waveResults.map(w =>
+      `Wave ${w.waveNumber} (${w.dispatch}): ${w.succeeded.length} done, ${w.failed.length} failed, ${w.blocked.length} blocked` +
+      `${w.succeeded.length ? ' — shipped: ' + w.succeeded.map(s => s.issueId + (s.commitMessage ? ' (' + s.commitMessage + ')' : '')).join(', ') : ''}` +
+      `${w.blocked.length ? ' — blocked: ' + w.blocked.map(b => b.issueId + ': ' + (b.error || '?')).join('; ') : ''}`
+    ).join('\n')
+
+    const oversight = await agent(
+      `You are the CAMPAIGN OVERSEER — a distinct campaign-altitude judge. You do
+      NOT execute work; you assess whether the campaign is still on the rails.
+
+      CAMPAIGN INTENT (what this whole batch is FOR):
+      ${campaignIntent}
+
+      PRIOR CONTEXT (relevant past sessions + repo merge history — use this to spot
+      drift from what was intended or repeats of past mistakes):
+      ${priorContext}
+
+      TRAJECTORY SO FAR (waves completed):
+      ${trajectory}
+
+      REMAINING WAVES: ${decomposition.waves.length - wave.waveNumber}
+      NEXT WAVE: ${decomposition.waves.length > wave.waveNumber ?
+        'items ' + (decomposition.waves[wave.waveNumber]?.items || []).join(', ') : 'none'}
+
+      Judge whether it is SAFE and SENSIBLE to continue to the next wave. Consider:
+      - Is the work actually serving the stated intent, or drifting from it?
+      - Do the shipped changes so far cohere, or are they pulling in different directions?
+      - Do the blockers/concerns suggest the plan is wrong, not just the execution?
+      - Does prior context reveal this approach already failed before?
+
+      This is NOT a per-item review (that already happened). It's a trajectory check.
+      Default to continue UNLESS you see real drift — a HOLD costs the human's
+      attention, so only pull that cord when it's warranted.
+
+      Return a JSON object with:
+      - continue: boolean — safe to proceed to the next wave?
+      - confidence: number 0-100 — how confident in that verdict
+      - concern: string or null — the single most important concern, if any
+      - recommendation: string — what the human should do if you said continue:false
+      - driftFromIntent: boolean — is the work drifting from the stated intent?`,
+      {
+        label: `oversee:after-wave${wave.waveNumber}`,
+        phase: 'Oversee',
+        schema: {
+          type: 'object',
+          properties: {
+            continue: { type: 'boolean' },
+            confidence: { type: 'number' },
+            concern: { type: ['string', 'null'] },
+            recommendation: { type: 'string' },
+            driftFromIntent: { type: 'boolean' }
+          },
+          required: ['continue', 'confidence', 'recommendation']
+        }
+      }
+    )
+
+    if (oversight) {
+      waveReport.oversight = oversight
+      log(`  Oversight after wave ${wave.waveNumber}: continue=${oversight.continue} (${oversight.confidence}% confident)`)
+      if (oversight.concern) log(`    concern: ${oversight.concern}`)
+
+      // HOLD conditions (a Legal Exit per Axiom 6 — this is a considered stop,
+      // not "accumulated anxiety"): explicit no-continue, or confidence below floor.
+      const belowFloor = oversight.confidence < confidenceFloor
+      if (oversight.continue === false || belowFloor) {
+        const why = oversight.continue === false
+          ? 'overseer flagged: ' + (oversight.concern || 'unsafe to continue')
+          : `confidence ${oversight.confidence}% below floor ${confidenceFloor}%`
+        log(`  Campaign HELD after wave ${wave.waveNumber}: ${why}`)
+        campaignHeld = { wave: wave.waveNumber, why, oversight }
+        break
+      }
+    } else {
+      log(`  Oversight after wave ${wave.waveNumber}: judge unavailable — continuing (fail-open on oversight)`)
+    }
+  }
+  // ────────────────────────────────────────────────────────────────
 }
 
 phase('Report')
@@ -233,7 +338,9 @@ const completedItems = waveResults.flatMap(w => w.succeeded).length
 const failedItems = waveResults.flatMap(w => w.failed).length
 const blockedItems = waveResults.flatMap(w => w.blocked).length
 
-const summary = `Campaign: ${completedItems}/${totalItems} complete, ${failedItems} failed, ${blockedItems} blocked`
+const wavesRun = waveResults.length
+const heldNote = campaignHeld ? ` — HELD by oversight after wave ${campaignHeld.wave}` : ''
+const summary = `Campaign: ${completedItems}/${totalItems} complete, ${failedItems} failed, ${blockedItems} blocked (${wavesRun}/${decomposition.waves.length} waves run)${heldNote}`
 log(summary)
 
 // Write evidence for the whole campaign
@@ -242,11 +349,24 @@ const allPRs = waveResults
   .filter(r => r.prUrl)
   .map(r => r.prUrl)
 
+// Status: held (oversight stopped us) > partial (hard fault) > complete
+let campaignStatus = 'complete'
+if (campaignHeld) campaignStatus = 'held'
+else if (campaignFailed) campaignStatus = 'partial'
+
 return {
-  status: campaignFailed ? 'partial' : 'complete',
+  status: campaignStatus,
   summary,
+  intent: campaignIntent,
   waves: decomposition.waves.length,
+  wavesRun,
   topology: decomposition.topology,
+  held: campaignHeld ? {
+    afterWave: campaignHeld.wave,
+    why: campaignHeld.why,
+    recommendation: campaignHeld.oversight.recommendation,
+    driftFromIntent: campaignHeld.oversight.driftFromIntent
+  } : null,
   results: {
     total: totalItems,
     completed: completedItems,
@@ -259,6 +379,7 @@ return {
     dispatch: w.dispatch,
     succeeded: w.succeeded.map(s => s.issueId),
     failed: w.failed.map(f => ({ id: f.issueId, error: f.error })),
-    blocked: w.blocked.map(b => ({ id: b.issueId, error: b.error }))
+    blocked: w.blocked.map(b => ({ id: b.issueId, error: b.error })),
+    oversight: w.oversight ? { continue: w.oversight.continue, confidence: w.oversight.confidence, concern: w.oversight.concern } : null
   }))
 }

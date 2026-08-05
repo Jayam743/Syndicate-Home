@@ -51,10 +51,17 @@ Workflow({
     repo: "/path/to/repo",
     branch: "main",
     autoMerge: false,
-    maxWaves: 5
+    maxWaves: 5,
+    intent: "the overall goal of this whole batch (what it's FOR)",
+    priorContext: "<paste the recall brief here — run scripts/recall.sh first>",
+    overseeConfidenceFloor: 50
   }
 })
 ```
+
+**Fill `intent` and `priorContext`.** Before launching, Odin runs
+`scripts/recall.sh "<the batch goal>"` and passes the result as `priorContext`.
+The oversight seam uses both to judge whether the campaign is still on the rails.
 
 ### 3. Monitor and Report
 
@@ -66,6 +73,22 @@ The workflow runs autonomously. Each wave:
 - Creates PRs
 
 Between waves: barrier ensures wave N completes before wave N+1 starts.
+
+### The Oversight Seam (between waves)
+
+After each wave PASSES — and before the next begins — a distinct **campaign
+overseer** judges the trajectory: *"Given the intent, the work shipped so far, and
+prior related sessions, is it safe to continue?"* It returns
+`{continue, confidence, concern, recommendation}`.
+
+The campaign **HOLDs** (a Legal Exit, Axiom 6) if the overseer says `continue:false`
+OR confidence drops below `overseeConfidenceFloor` (default 50). A HOLD is a
+considered stop with a recommendation — not a hard fault.
+
+Why this matters: per-item review catches bugs in one change. The overseer catches
+**drift** — the batch quietly pulling away from what you actually wanted, or repeating
+a mistake visible in prior sessions. The overseer is its OWN agent at campaign
+altitude (not a reused execution agent), and it sees the recall/history context.
 
 ### Dispatch Classification (serial vs parallel within a wave)
 
