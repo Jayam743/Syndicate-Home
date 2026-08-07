@@ -96,17 +96,26 @@ Pipelines produce **Evidence Packets** — structured records of what happened, 
 
 ## Skills
 
+**The flow:** `/engage` → `/syndicate` → then just talk. After `/syndicate`, every
+message auto-routes through Odin — no `/route` prefix needed.
+
 | Skill | Purpose |
 |-------|---------|
-| `/route` | Entry point — pass any task to Odin |
+| `/syndicate` | **Activate self-dispatch** (run after /engage) — then just talk |
+| `/route` | Manually route one task through Odin (if not self-dispatching) |
+| `/recall` | Pull relevant recent sessions + repo merge history |
+| `/muse` | Conception — shape a fuzzy idea before building |
+| `/campaign` | Multi-issue wave execution |
+| `/goalseek` | Open-ended probe→judge→steer loop |
+| `/godspeed` | Arm/disarm autonomy mandate |
 | `/status` | Generate weekly status report via Ledger |
 | `/engage` | Session start — load state, check crew, confirm rules |
-| `/godspeed` | Arm/disarm autonomy mandate |
 | `/precheck` | Pre-commit gate (branch, secrets, review) |
 | `/wtf` | Flight recorder for investigations |
 | `/thoughts` | Stress-test a proposal via Loki + Specter |
 
-In layered mode (BJ's workflow present), `/precheck` and `/wtf` defer to BJ's more comprehensive versions.
+In layered mode (BJ's workflow present), `/engage`, `/precheck`, `/wtf`, and
+`/thoughts` defer to BJ's versions; `/syndicate` layers routing on top of them.
 
 ---
 

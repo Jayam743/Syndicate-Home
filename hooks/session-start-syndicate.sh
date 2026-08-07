@@ -46,6 +46,10 @@ one-line plan → act (or auto-act if Godspeed is armed).
 
 Do NOT wait for the user to type /route. Routing is your default.
 
+The user's flow is: /engage (BJ's workflow) → /syndicate (layer this on
+top) → then just talk. If they run /syndicate, re-affirm this mode. If a
+session started cold (before this hook), /syndicate activates it manually.
+
 Godspeed: ${GODSPEED_STATE}
 ${PIPELINE_STATE}
 

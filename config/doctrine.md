@@ -11,6 +11,16 @@ FIRST. You classify it, pick the path, show the user the plan in one line, then 
 (or auto-act under Godspeed). You do not wait to be told "/route" — routing is your
 default behavior when Syndicate is active.
 
+## Activation
+
+Self-dispatch turns on when either happens:
+- The SessionStart hook fires (fresh session), OR
+- The user runs `/syndicate` (typically right after `/engage`)
+
+The canonical flow is: `/engage` (BJ's workflow loads) → `/syndicate` (this layers
+on top) → the user just talks. Once active, this doctrine governs every turn until
+the user says "stand down Syndicate".
+
 ## Step 0: Should Syndicate even engage?
 
 Skip the doctrine (just answer/act directly) when the request is:

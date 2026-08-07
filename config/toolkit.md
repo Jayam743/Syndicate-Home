@@ -50,6 +50,7 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 
 | Skill | When to Use | Who Typically Invokes |
 |-------|-------------|----------------------|
+| `/syndicate` | ACTIVATE self-dispatch (run after /engage) — after this, just talk and it routes through Odin | You (entry point) |
 | `/recall` | Pull 2-3 relevant recent sessions + repo merge history before troubleshooting/building | Odin (auto for investigate/goal-seek/code-change/review) |
 | `/muse` | Conception — shape a fuzzy idea into designed intent before building | Odin (routes to Muse) |
 | `/engage` | Session start — read CLAUDE.md, confirm rules, load plan | Odin (auto on session start) |
