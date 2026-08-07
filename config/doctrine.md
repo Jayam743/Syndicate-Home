@@ -56,6 +56,8 @@ Scribe is a leaf agent (Read/Bash only, no spawning) so this is one clean hop �
 nesting problem. This is the step that was missing: it's why raw prompts were being
 dispatched directly. Skip it only for:
 - Simple, already-precise requests ("run the tests", "commit this")
+- Any request that already ENUMERATES its own deliverables/sections — recrafting a
+  numbered spec adds nothing (e.g. a request with "report: 1)… 2)… 3)…")
 - Single-purpose routing where there's nothing to recraft (ship/track/convert)
 - Trivial/conversational (already filtered by Step 0)
 
@@ -83,9 +85,15 @@ Match the request against these signals, top to bottom. First match wins.
 | Email / Teams / message / announce | **communicate** | Herald agent |
 | PDF / DOCX / convert a document | **ingest** | Cipher agent |
 | Stress-test a proposal before acting | **pressure-test** | `/thoughts` skill |
+| Retrospective / self-audit of THIS session's own activity | **retrospective** | `/retro` skill — main-loop synthesis (Ledger lane = accounting, Loki lane = critique, Odin lane = routing facts). Do NOT spawn subagents for a same-session audit — the main loop is the only actor that sees the full transcript. |
 
 If two classifications fit, prefer the one HIGHER in the table (conception and
 investigation come before execution — shape/diagnose before you build).
+
+**De-bundle multiple asks.** If one message contains ≥2 requests of DIFFERENT
+classifications (e.g. a retrospective + a code study), split them: handle the first,
+and explicitly name the held second ("Held for next: the X study — routes to Y").
+Don't silently merge them into one muddy dispatch.
 
 **For review:** if the change has acceptance criteria (an issue, a devspec section,
 or even the task statement), pass them as the workflow's `acceptanceCriteria` arg.
@@ -112,7 +120,8 @@ you don't start cold — you start from the last 2-3 conversations on this topic
 what the repo has merged recently. Do NOT go deeper than that (no full-history dumps).
 
 Skip recall for: single-purpose routing (ship/infra/track/message/convert),
-trivial questions, and conception (Muse starts fresh by design).
+retrospective (it audits THIS session, not past ones), trivial questions, and
+conception (Muse starts fresh by design).
 
 **For campaign specifically:** pass the recall brief as the workflow's `priorContext`
 arg and the batch goal as `intent`. The oversight seam (between waves) uses both to

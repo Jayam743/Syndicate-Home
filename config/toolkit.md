@@ -52,6 +52,7 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 |-------|-------------|----------------------|
 | `/syndicate` | ACTIVATE self-dispatch (run after /engage) — after this, just talk and it routes through Odin | You (entry point) |
 | `/recall` | Pull 2-3 relevant recent sessions + repo merge history before troubleshooting/building | Odin (auto for investigate/goal-seek/code-change/review) |
+| `/retro` | Session retrospective — run at END; audits tokens/models/crew/mistakes for THIS session | You (end of session) |
 | `/muse` | Conception — shape a fuzzy idea into designed intent before building | Odin (routes to Muse) |
 | `/engage` | Session start — read CLAUDE.md, confirm rules, load plan | Odin (auto on session start) |
 | `/precheck` | Before ANY commit — branch/issue validation, review, checklist | Hermes (mandatory gate) |
@@ -125,6 +126,12 @@ Hooks fire based on lifecycle events. Agents should expect their behavior.
 | Hook | What It Does | Agent Impact |
 |------|-------------|--------------|
 | `session-end-ledger.sh` | Logs session commits to Ledger | Ledger: data arrives automatically |
+
+**Token accounting is harness-sourced, never model-sourced.** The model cannot see
+its own token meter. Ledger's token/cost figures come from `/cost` or the SessionEnd
+hook — never from the model "reporting" a number. If asked for session token totals,
+the honest answer is "run `/cost`", not an estimate. (This is why `/retro`'s token
+section defers to `/cost` instead of guessing.)
 
 ## MCP Servers (invoke via ToolSearch → then call the tool)
 
