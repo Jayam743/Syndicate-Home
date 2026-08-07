@@ -1,6 +1,6 @@
 ---
 name: scribe
-model: claude-opus-4-7
+model: us.anthropic.claude-opus-4-7
 fallback_model: us.anthropic.claude-opus-4-6-v1[1m]
 tier: 2
 description: "Prompt Crafter — takes raw user intent and recrafts it into an optimized, structured prompt for the target agent. Reasoning-heavy: infers unstated intent, adds implied context."

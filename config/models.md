@@ -88,12 +88,21 @@ This data feeds Loki's improvement proposals (pattern: "Forge fell to session mo
 
 ## Model IDs (for frontmatter)
 
+Syndicate targets **Bedrock inference-profile IDs** (this environment runs Claude
+Code on AWS Bedrock). Plain Anthropic IDs like `claude-opus-4-7` are NOT valid here
+and cause "invalid model identifier" errors — always use the `us.anthropic.*` form.
+
 ```
-opus 4.8  → claude-opus-4-8
-opus 4.7  → claude-opus-4-7
-opus 4.6  → us.anthropic.claude-opus-4-6-v1[1m]
-sonnet 4  → claude-sonnet-4-5-20251022
+opus 4.8  → us.anthropic.claude-opus-4-8
+opus 4.7  → us.anthropic.claude-opus-4-7
+opus 4.6  → us.anthropic.claude-opus-4-6-v1[1m]   (session/1M-context form)
+sonnet 4  → us.anthropic.claude-sonnet-4-5-20250929-v1:0
 ```
+
+**Verified available on this account** (via `aws bedrock list-inference-profiles`,
+2026-08): opus 4.8, 4.7, 4.6, 4.5, 4.1; sonnet 5, 4.6, 4.5, 4; haiku 4.5; fable 5;
+opus/sonnet 5. If porting Syndicate to a non-Bedrock (direct Anthropic API) setup,
+switch these back to plain IDs (`claude-opus-4-8`, etc.).
 
 ## Fallback Rules
 

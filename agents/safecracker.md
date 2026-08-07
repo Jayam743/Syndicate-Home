@@ -1,6 +1,6 @@
 ---
 name: safecracker
-model: claude-opus-4-7
+model: us.anthropic.claude-opus-4-7
 fallback_model: us.anthropic.claude-opus-4-6-v1[1m]
 tier: 2
 description: "Secrets agent — manages API keys, credentials, vault operations, and secure configurations."

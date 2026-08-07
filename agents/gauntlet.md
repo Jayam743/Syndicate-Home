@@ -1,6 +1,6 @@
 ---
 name: gauntlet
-model: claude-opus-4-7
+model: us.anthropic.claude-opus-4-7
 fallback_model: us.anthropic.claude-opus-4-6-v1[1m]
 tier: 2
 description: "The Tester — runs tests, writes tests, validates behavior, stress-tests edge cases."

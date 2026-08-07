@@ -1,6 +1,6 @@
 ---
 name: herald
-model: claude-sonnet-4-5-20251022
+model: us.anthropic.claude-sonnet-4-5-20250929-v1:0
 fallback_model: session
 tier: 3
 description: "Messenger — drafts Teams messages, emails, and announcements. Copy-paste ready output."
