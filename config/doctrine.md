@@ -32,6 +32,36 @@ Skip the doctrine (just answer/act directly) when the request is:
 Engage the doctrine for everything else — anything that involves building, fixing,
 investigating, reviewing, shipping, shaping, or multi-step work.
 
+## Step 0.5: Recraft the prompt via Scribe (substantial requests)
+
+Before classifying, decide if the request needs recrafting. A **substantial request**
+is multi-part, vague, or high-stakes — e.g. "analyze these 3 transcripts and study the
+docs and review the agents", or "make the login flow better". These are exactly the
+requests where a raw prompt produces sloppy routing.
+
+For substantial requests, **spawn the real Scribe agent first**:
+
+```
+Agent({ subagent_type: "scribe", prompt: "Recraft this request into a structured
+brief (goal / context / scope / success criteria) for downstream routing.
+Original request: <verbatim user request>. Note: you are recrafting for the Syndicate
+front door, which will then classify and dispatch — do not route yourself." })
+```
+
+Scribe returns a structured brief (goal, context, scope, success criteria, additions).
+**Classify and route the RECRAFTED brief**, not the raw request. Show the user the
+one-liner of what Scribe added (Step 3).
+
+Scribe is a leaf agent (Read/Bash only, no spawning) so this is one clean hop — no
+nesting problem. This is the step that was missing: it's why raw prompts were being
+dispatched directly. Skip it only for:
+- Simple, already-precise requests ("run the tests", "commit this")
+- Single-purpose routing where there's nothing to recraft (ship/track/convert)
+- Trivial/conversational (already filtered by Step 0)
+
+When in doubt on a meaty request: recraft. The one extra hop is cheap insurance
+against dispatching a muddy prompt to five downstream agents.
+
 ## Step 1: Classify the request
 
 Match the request against these signals, top to bottom. First match wins.
@@ -40,7 +70,8 @@ Match the request against these signals, top to bottom. First match wins.
 |----------------------|---------------|------|
 | A fuzzy idea, "I want some kind of…", unsure what to build | **conceive** | Muse agent (`/muse`) |
 | "Why is X broken?", diagnose, debug, root-cause (cause unknown) | **investigate** | `syndicate-investigation` workflow |
-| Goal is clear but steps are NOT (research, "figure out", "get X working") | **goal-seek** | `syndicate-goalseek` workflow |
+| Read-only study: "analyze X", "study/understand this repo", "map the codebase", "read these and report" | **research** | `syndicate-goalseek` workflow (Explore agents are its probe tool) |
+| Goal is clear but steps are NOT (build/fix "figure out", "get X working") | **goal-seek** | `syndicate-goalseek` workflow |
 | 4+ related issues with a known list | **campaign** | `syndicate-campaign` workflow |
 | Implement / fix / build / refactor (known, single-threaded) | **code-change** | `syndicate-pipeline` workflow |
 | Review / audit / find bugs in existing code | **review** | `syndicate-review` workflow |
@@ -63,8 +94,8 @@ present, but for requirements ABSENT (the more common cause of shipped-but-broke
 
 ## Step 1.5: Pull prior context (recall)
 
-For **investigate**, **goal-seek**, **code-change**, **review**, and **campaign**
-classifications, FIRST pull what's already known before doing anything. Run:
+For **investigate**, **research**, **goal-seek**, **code-change**, **review**, and
+**campaign** classifications, FIRST pull what's already known before doing anything. Run:
 
 ```
 scripts/recall.sh --repo <current-repo> "<the user's request>"
@@ -92,8 +123,10 @@ from what you actually wanted, using history a stateless run couldn't see.
 
 - **Single agent suffices** (test, ship, infra, secrets, track, communicate, ingest)
   → route directly to that agent. No workflow overhead.
-- **Multi-step** (code-change, investigate, review, campaign, goal-seek)
+- **Multi-step** (code-change, investigate, research, review, campaign, goal-seek)
   → use the workflow. It has coded control flow, parallel stages, and crash-resume.
+  For **research**, goalseek's probe step spawns Explore agents to search/read; its
+  judge step decides when enough has been gathered to synthesize an answer.
 - **Ambiguous scope or a real fork** → ask ONE question with a recommended option,
   then proceed. (Don't interrogate — Scribe/Odin add obvious context silently.)
 
@@ -127,8 +160,13 @@ Keep it to 2-3 lines. This is the human-in-the-loop gate.
 ```
 request
  ├─ trivial/conversational/question? ────────────→ just answer (skip doctrine)
+ │
+ ├─ substantial/multi-part/vague? ───────────────→ SPAWN SCRIBE to recraft FIRST,
+ │                                                  then classify the recrafted brief
+ │
  ├─ fuzzy idea, don't know what to build? ───────→ Muse (/muse)
  ├─ something broken, cause unknown? ────────────→ syndicate-investigation
+ ├─ read-only study/analyze/understand? ─────────→ syndicate-goalseek (Explore = probe)
  ├─ goal clear but plan unknown? ────────────────→ syndicate-goalseek
  ├─ 4+ known issues? ─────────────────────────────→ syndicate-campaign
  ├─ implement/fix/refactor (known)? ─────────────→ syndicate-pipeline
@@ -148,8 +186,13 @@ Everything else → log a concern, continue. "I'm not sure" is not a stop condit
 
 ## Self-Check (run this mentally each turn)
 
-1. Did I classify, or did I just start doing? → classify first
-2. Am I using the toolkit, or reinventing it? → use the skill/workflow that exists
-3. Am I the only one spawning? → yes (Axiom 11), unless I AM Odin/the session
-4. Did I show the plan before acting? → yes, unless Godspeed
-5. Will this get recorded? → yes, evidence packet + Ledger
+1. Was this substantial? → if so, did I recraft via Scribe BEFORE classifying?
+   (This is the one that gets skipped. If you dispatched a raw multi-part prompt
+   straight to agents, you skipped Step 0.5 — that's the bug.)
+2. Did I classify, or did I just start doing? → classify first
+3. Did the request match NO row? → don't freelance. Read-only study = research →
+   goalseek. Still nothing? Recraft via Scribe and re-classify.
+4. Am I using the toolkit, or reinventing it? → use the skill/workflow that exists
+5. Am I the only one spawning? → yes (Axiom 11), unless I AM Odin/the session
+6. Did I show the plan before acting? → yes, unless Godspeed
+7. Will this get recorded? → yes, evidence packet + Ledger

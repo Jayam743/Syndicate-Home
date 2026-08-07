@@ -59,7 +59,7 @@ Workflow({
     goal: "why does the nightly job intermittently hang?",
     context: "starts around 2am, logs in /var/log/nightly, started ~last week",
     maxRounds: 6,
-    agentType: "specter",   // specter for investigation, forge for build-toward-working
+    agentType: "specter",   // specter=investigation, forge=build, Explore=read-only research/study
     emit: "answer"          // "answer" | "plan" | "artifact"
   }
 })

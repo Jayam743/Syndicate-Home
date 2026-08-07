@@ -25,8 +25,13 @@ export const meta = {
 //   context: string — starting knowledge, constraints, where to look
 //   maxRounds: number — hard cap on probe rounds (default 6)
 //   agentType: string — which specialist probes ("specter" for investigation,
-//              "forge" for build-toward-working, default general reasoning)
+//              "forge" for build-toward-working, "Explore" for read-only research/
+//              study/mapping a codebase, default general reasoning)
 //   emit: "answer" | "plan" | "artifact" — what to produce when sufficient
+//
+// RESEARCH tasks (read-only "analyze/study/map X") route here with
+// agentType:"Explore" — each probe is an Explore search, the judge decides when
+// enough has been gathered, and emit:"answer" synthesizes the findings.
 
 const goal = args.goal
 const maxRounds = args.maxRounds || 6
