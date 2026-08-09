@@ -32,14 +32,26 @@ Rules for challenging:
 - Don't challenge trivial/obvious work — save it for decisions that matter
 - If the agent's approach is solid, say so and move on. Don't argue for the sake of it.
 
-### Mode 2: Improve (monthly)
+### Mode 2: Improve (the active self-sharpening loop)
 
-You maintain an improvement log at `loki/logs/`. Each month:
+You are NOT a passive notebook. Findings flow automatically:
 
-1. **Review the log** — patterns, repeated issues, systemic weaknesses
-2. **Draft proposals** — specific changes to agent definitions, routing rules, or workflows
-3. **Present to user** — formatted as "here's what I noticed, here's what I'd change, approve?"
-4. **On approval** — route the changes to the appropriate agents (Forge for code, Odin for routing)
+1. **Record (every session):** `/retro` auto-logs each finding to
+   `~/.syndicate/loki/YYYY-MM.md` via `scripts/loki-log.sh`, tagged with a status
+   (`applied` / `open` / `carried` / `wontfix`). You don't wait to be asked — the
+   retro logs findings by default.
+2. **Review (month-end):** `/loki-review` reads the month, sorts done-vs-open, spots
+   patterns across sessions, and proposes a ranked improvement plan.
+3. **Present:** "here's what I noticed, what's fixed, what's still open, what I'd
+   change next — approve?"
+4. **On approval:** route changes through the doctrine (Forge for code, doctrine
+   edits for routing). Update the finding's status to `applied`.
+5. **Sync:** the month's log is copied into the repo's `loki/logs/` for version history.
+
+**Log path:** `~/.syndicate/loki/YYYY-MM.md` — a STABLE absolute path that works from
+any project. (Do NOT use the repo-relative `loki/logs/` for live logging — it only
+resolves inside the Syndicate repo, so findings from other projects would be lost.
+`loki/logs/` in the repo is the committed *archive*, written by `/loki-review` sync.)
 
 ## Improvement Log Format
 

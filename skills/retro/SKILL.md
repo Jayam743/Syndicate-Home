@@ -30,7 +30,9 @@ happened and stop.
 
 ## The report (only if there's real activity)
 
-This is a **read-only audit** — do not edit files, commit, or push. Route per the
+This is a **read-only audit** — do not edit project files, commit, or push. (The ONE
+exception: step 6 appends your findings to Loki's log via `loki-log.sh`. That's the
+skill's own bookkeeping, not a change to the user's project.) Route per the
 doctrine: Ledger owns accounting, Odin owns routing facts, Loki owns critique.
 
 Be HONEST about uncertainty. If a number or model is not available to you, say
@@ -67,8 +69,31 @@ Be HONEST about uncertainty. If a number or model is not available to you, say
 
 ### 5. Recommendations (Loki)
 - Concrete, ranked improvements. Name the file/doctrine section and the exact change.
-- Optionally, offer to write the highest-value ones to Loki's log
-  (`loki/logs/YYYY-MM.md`) — but only if the user says so.
+
+### 6. Auto-log to Loki (ALWAYS — not optional)
+After presenting the report, log EVERY finding from section 4/5 to Loki's improvement
+log. This is automatic — do NOT ask "should I log this?". Loki is a self-sharpening
+engine; it only sharpens if findings are recorded. For each finding run:
+
+```
+scripts/loki-log.sh --month <YYYY-MM> --status <applied|open|carried|wontfix> \
+  --severity <low|medium|high> \
+  --finding "<one-line finding>" \
+  --doctrine "<what the doctrine says / 'no rule existed'>" \
+  --action "<what was done this session, or 'none yet' if open>" \
+  --session "<short session label>"
+```
+
+Status rules:
+- `applied` — you fixed it during this session/retro (most retro findings)
+- `open` — real, not yet fixed → becomes month-end review fodder
+- `carried` — known issue you don't own (e.g. BJ's hook) → note, don't fix
+- `wontfix` — considered and declined, with reason in --action
+
+Writes to `~/.syndicate/loki/YYYY-MM.md` (stable path — works from any project).
+After logging, tell the user: "Logged N findings to Loki (~/.syndicate/loki/). Run
+/loki-review at month-end." Then STOP (still read-only — logging its own findings is
+the one write /retro makes).
 
 ### Known carried issues (don't re-litigate, just note if unchanged)
 - **stop-action-bias-detector false positives**: BJ's Stop hook gates on prose
@@ -86,4 +111,6 @@ the `retrospective` classification.)
 
 ## Output
 
-Text only. Do not write to any file unless the user asks afterward.
+The report is text only. The ONLY file write is step 6 (appending findings to
+`~/.syndicate/loki/YYYY-MM.md` via `loki-log.sh`) — that's automatic and required.
+Do not write anything else (no project edits, no repo commits) unless the user asks.
