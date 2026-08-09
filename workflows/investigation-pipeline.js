@@ -26,11 +26,15 @@ const investigation = await agent(
   CONTEXT: ${args.context || 'none provided'}
 
   Follow your investigation protocol:
+  0. CHECK MEMORY FIRST — run: scripts/investigation-memory.sh query "<symptom words>"
+     If a prior investigation matches, START from its fix and verify it applies here
+     instead of re-diagnosing from zero. Report the match in priorMatch.
   1. OBSERVE — gather symptoms, check logs, config, recent changes (READ-ONLY)
   2. HYPOTHESIZE — form 2-4 theories, rank by likelihood
   3. TEST — minimal test for each hypothesis, eliminate dead ends fast
 
   Return a JSON object with:
+  - priorMatch: string or null — a matching past investigation (slug + its fix) if memory had one
   - symptoms: array of observed symptoms
   - hypotheses: array of {theory, likelihood, evidence_for, evidence_against, tested, result}
   - rootCause: string — what's actually wrong (null if inconclusive)
@@ -43,6 +47,7 @@ const investigation = await agent(
     schema: {
       type: 'object',
       properties: {
+        priorMatch: { type: ['string', 'null'] },
         symptoms: { type: 'array', items: { type: 'string' } },
         hypotheses: {
           type: 'array',
