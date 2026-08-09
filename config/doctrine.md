@@ -100,6 +100,15 @@ or even the task statement), pass them as the workflow's `acceptanceCriteria` ar
 That turns on omission-verification — the review then checks not just for bugs
 present, but for requirements ABSENT (the more common cause of shipped-but-broken).
 
+**Fetch before you reconstruct git history.** Any task that reads git/MR state to
+reconstruct what happened (research on a repo's history, "is X merged?", branch
+reconstruction) MUST start with `git fetch origin <branch>` first. A merge-state
+claim from an unfetched ref is unreliable — a stale local ref shows "not merged" /
+"0 ahead 0 behind" when the merge actually landed upstream. If local git and the
+forge (glab/gh) disagree, treat the disagreement as a SIGNAL: fetch, then resolve —
+do not pick one or hedge. (Scar: a stale local ref nearly reported a merged MR as
+un-merged. The forge was right; the unfetched local ref was wrong.)
+
 ## Step 1.5: Pull prior context (recall)
 
 For **investigate**, **research**, **goal-seek**, **code-change**, **review**, and
@@ -122,6 +131,14 @@ what the repo has merged recently. Do NOT go deeper than that (no full-history d
 Skip recall for: single-purpose routing (ship/infra/track/message/convert),
 retrospective (it audits THIS session, not past ones), trivial questions, and
 conception (Muse starts fresh by design).
+
+**Also skip recall when the user SUPPLIED the prior context** (a handoff with the
+facts to verify, pasted history, or "here's what we established last time"). Recall's
+job is to recover context you'd otherwise lack — if it's already in hand, running it
+is redundant. But SAY you're skipping it and why ("recall skipped — you supplied the
+prior context"), so a skipped step is always disclosed, never silent. (This closes
+the recurring "recall under-fires on research" gap: it wasn't a miss, it was an
+unstated-but-correct skip. Now it's stated.)
 
 **For campaign specifically:** pass the recall brief as the workflow's `priorContext`
 arg and the batch goal as `intent`. The oversight seam (between waves) uses both to

@@ -60,13 +60,20 @@ Be HONEST about uncertainty. If a number or model is not available to you, say
   - Was Scribe's recraft (Step 0.5) applied to substantial requests, or skipped?
   - Did any request match NO classification and get freelanced?
   - Was an agent used that shouldn't have been, or one skipped that should have run?
-  - Did recall (Step 1.5) fire when it should have?
+  - Did recall (Step 1.5) fire when it should have — and if skipped, was the skip
+    STATED (user-supplied context is a valid, but must-be-disclosed, skip reason)?
+  - For git-history work: was `git fetch` run before reconstructing merge state?
 - For each: what happened, what the doctrine says, severity.
 
 ### 5. Recommendations (Loki)
 - Concrete, ranked improvements. Name the file/doctrine section and the exact change.
 - Optionally, offer to write the highest-value ones to Loki's log
   (`loki/logs/YYYY-MM.md`) — but only if the user says so.
+
+### Known carried issues (don't re-litigate, just note if unchanged)
+- **stop-action-bias-detector false positives**: BJ's Stop hook gates on prose
+  keywords (prod/deploy/etc.) in summaries, not just actions. This is BJ's hook, not
+  Syndicate's — we can't fix it here; note it if it recurred, don't propose edits to it.
 
 ## A note on doing it in-loop vs spawning agents
 

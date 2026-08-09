@@ -137,7 +137,15 @@ if git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
     if [ -n "$(echo "$MR_OUT" | tr -d '[:space:]')" ]; then
         echo "$MR_OUT" | sed 's/^/  /'
     else
-        echo "  (remote MR/PR list unavailable — using local git merge log)"
+        # Fetch first so the local merge log isn't stale (best-effort, non-blocking;
+        # a stale ref falsely shows merges as absent — see doctrine "fetch before
+        # you reconstruct"). Quiet + short timeout so offline/slow remotes don't hang.
+        if command -v timeout >/dev/null 2>&1; then
+            timeout 15 git -C "$REPO_DIR" fetch --quiet origin 2>/dev/null || true
+        else
+            git -C "$REPO_DIR" fetch --quiet origin 2>/dev/null || true
+        fi
+        echo "  (remote MR/PR list unavailable — using local git merge log, post-fetch)"
         LOCAL_MERGES="$(git -C "$REPO_DIR" log --merges --oneline -n "$MAX_MRS" 2>/dev/null)"
         if [ -n "$LOCAL_MERGES" ]; then
             echo "$LOCAL_MERGES" | sed 's/^/  /'
