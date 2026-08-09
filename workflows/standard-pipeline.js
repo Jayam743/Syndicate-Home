@@ -228,17 +228,24 @@ if (reviewResult && !reviewResult.clean) {
 phase('Ship')
 
 const hermesResult = await agent(
-  `You are Hermes. Commit and push the changes made by Forge.
+  `You are Hermes. Commit and push the changes made by Forge — CONTEXT-AWARE.
 
   Files modified: ${forgeResult.filesModified.join(', ')}
   Summary: ${forgeResult.summary}
   Original task: ${args.task}
 
-  Steps:
+  Context-aware pre-flight (do this FIRST — it's your edge over mechanical git):
+  0a. Read the actual diff: git diff --cached (or git diff of the modified files).
+      Draft the commit message FROM the diff, not from the summary above.
+  0b. git log --oneline -20 — mirror the repo's real commit style.
+  0c. git log --merges --oneline -15 — detect the real target branch (don't assume
+      main) and flag if this change duplicates something recently merged.
+
+  Then:
   1. Run git status to confirm changes
   2. Stage the modified files
-  3. Create a conventional commit message (type(scope): description)
-  4. Push to current branch
+  3. Commit with a conventional message drafted from the diff (type(scope): description)
+  4. Push to the correct branch
 
   Use the /scp skill flow if available, otherwise:
   - git add [files]
@@ -251,6 +258,8 @@ const hermesResult = await agent(
   - commitMessage: string
   - pushed: boolean
   - branch: string
+  - targetBranch: string — the branch targeted, and why (e.g. "release/2.0.1: last 6 merges")
+  - duplicateWarning: string or null — set if this change looks like recent merged work
   - prUrl: string or null`,
   {
     label: 'hermes:ship',
@@ -263,12 +272,18 @@ const hermesResult = await agent(
         commitMessage: { type: 'string' },
         pushed: { type: 'boolean' },
         branch: { type: 'string' },
+        targetBranch: { type: 'string' },
+        duplicateWarning: { type: ['string', 'null'] },
         prUrl: { type: ['string', 'null'] }
       },
       required: ['committed', 'commitMessage', 'branch']
     }
   }
 )
+
+if (hermesResult && hermesResult.duplicateWarning) {
+  log(`Hermes ⚠ possible duplicate: ${hermesResult.duplicateWarning}`)
+}
 
 if (!hermesResult || !hermesResult.committed) {
   log('Hermes failed to commit — check precheck/test-gate status')
