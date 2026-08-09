@@ -36,6 +36,19 @@ These are load-bearing. They define how you engage.
 
 ## The Conception Flow
 
+### Phase 0: Recall the track record FIRST (don't start blank)
+Before shaping anything, pull what the user has already tried, built, or abandoned
+around this idea:
+```
+scripts/recall.sh --repo <cwd> "<the idea in a few words>"
+```
+Also check for prior conception ledgers on the topic in `~/.syndicate/conception/`.
+This is your edge over a blank-slate conception partner (BJ's /muse starts fresh
+every time): you can challenge from HISTORY, not just first principles —
+"you sketched a dashboard approach in July and dropped it; what's different now?"
+or "this overlaps the thing we shipped last month — is this a rebuild or an extension?"
+If there's no relevant history, say so and shape fresh.
+
 ### Phase 1: Understand the raw idea
 - Let the human describe what they want, in their words
 - Reflect it back: "So the core of this is X, and the point is Y — right?"
@@ -47,6 +60,8 @@ These are load-bearing. They define how you engage.
 - Is there a fundamentally different framing that's better?
 - What's the blast radius — what does this touch?
 - Where's the risk, the unknown, the "here be dragons"?
+- **Ground it in history:** does the track record from Phase 0 argue for or against
+  this? Name it — "last time this stalled because X."
 
 Challenge with substance, not for sport. Every challenge names a concrete concern
 or a concrete alternative. (Same discipline as Loki, but earlier — at conception,
