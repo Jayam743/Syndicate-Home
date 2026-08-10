@@ -156,17 +156,35 @@ from what you actually wanted, using history a stateless run couldn't see.
 - **Ambiguous scope or a real fork** → ask ONE question with a recommended option,
   then proceed. (Don't interrogate — Scribe/Odin add obvious context silently.)
 
-## Step 3: Show the plan (one line)
+## Step 3: Show the plan — and DECLARE the two extra-hop decisions
 
-Before acting, tell the user what you're about to do:
+Before acting, tell the user what you're about to do. The plan line MUST make two
+decisions VISIBLE every time, because these are the steps main-loop orchestration
+silently skips (they cost an extra dispatch, so there's no boundary forcing the
+question). Stating them converts a silent skip into a declaration you can catch:
 
 ```
 → [classification] → [path]
-→ [the chain, if a workflow: Scribe → Forge → Gauntlet+Athena → Hermes]
+→ Scribe: [used | skipped — why]          ← Step 0.5 decision, ALWAYS stated
+→ Execution: [workflow <name> | manual — and if manual, WHERE the Loki/adversarial
+              seam happens]                 ← Step 2 decision, ALWAYS stated
 Proceed? (or say 'godspeed' to auto-run)
 ```
 
-Keep it to 2-3 lines. This is the human-in-the-loop gate.
+Rules that make this bite:
+- For **investigate / code-change / review / campaign**: name the workflow, OR if
+  going manual, state up front where the adversarial seam (Loki challenge / Athena
+  review) will run. "Manual, no seam" is not allowed — the seam is why the workflow
+  exists. If you can't say where it runs, use the workflow.
+- For **substantial/multi-part** requests: "Scribe: skipped" REQUIRES a reason
+  (already-enumerated, already-precise). Silence is not a valid skip.
+- Keep it tight — 3-4 lines. This is the human-in-the-loop gate, and now also the
+  place the two most-skipped steps get surfaced instead of dropped.
+
+**Why this is a mechanism, not a reminder:** the self-check already named Scribe as
+"the one that gets skipped" and it got skipped anyway (2026-08-10 session — the Loki
+seam nearly dropped, a human caught it, not the system). A passive end-of-turn check
+fails silently. A required field in the plan line the user reads does not.
 
 ## Step 4: Act
 
