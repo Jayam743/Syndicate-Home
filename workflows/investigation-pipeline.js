@@ -26,7 +26,7 @@ const investigation = await agent(
   CONTEXT: ${args.context || 'none provided'}
 
   Follow your investigation protocol:
-  0. CHECK MEMORY FIRST — run: scripts/investigation-memory.sh query "<symptom words>"
+  0. CHECK MEMORY FIRST — run: ~/.syndicate/scripts/investigation-memory.sh query "<symptom words>"
      If a prior investigation matches, START from its fix and verify it applies here
      instead of re-diagnosing from zero. Report the match in priorMatch.
   1. OBSERVE — gather symptoms, check logs, config, recent changes (READ-ONLY)

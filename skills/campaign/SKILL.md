@@ -53,14 +53,14 @@ Workflow({
     autoMerge: false,
     maxWaves: 5,
     intent: "the overall goal of this whole batch (what it's FOR)",
-    priorContext: "<paste the recall brief here — run scripts/recall.sh first>",
+    priorContext: "<paste the recall brief here — run ~/.syndicate/scripts/recall.sh first>",
     overseeConfidenceFloor: 50
   }
 })
 ```
 
 **Fill `intent` and `priorContext`.** Before launching, Odin runs
-`scripts/recall.sh "<the batch goal>"` and passes the result as `priorContext`.
+`~/.syndicate/scripts/recall.sh "<the batch goal>"` and passes the result as `priorContext`.
 The oversight seam uses both to judge whether the campaign is still on the rails.
 
 ### 3. Monitor and Report

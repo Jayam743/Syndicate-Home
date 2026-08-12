@@ -115,7 +115,7 @@ For **investigate**, **research**, **goal-seek**, **code-change**, **review**, a
 **campaign** classifications, FIRST pull what's already known before doing anything. Run:
 
 ```
-scripts/recall.sh --repo <current-repo> "<the user's request>"
+~/.syndicate/scripts/recall.sh --repo <current-repo> "<the user's request>"
 ```
 
 This returns a CONTEXT BRIEF containing:
@@ -195,7 +195,7 @@ fails silently. A required field in the plan line the user reads does not.
 
 ## Step 5: Record
 
-- Multi-step work → write an evidence packet (`scripts/write-evidence-packet.sh`)
+- Multi-step work → write an evidence packet (`~/.syndicate/scripts/write-evidence-packet.sh`)
 - Any completed work → Ledger logs it (the SessionEnd hook does this automatically)
 - Loki-raised concerns → logged, not blocking (Axiom 6)
 

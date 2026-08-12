@@ -78,6 +78,26 @@ else
 fi
 echo ""
 
+# --- 2.5. Install Scripts ---
+# Skills/agents call helper scripts (recall.sh, loki-log.sh, investigation-memory.sh,
+# etc.) by absolute path ~/.syndicate/scripts/ — NOT repo-relative. Reason: /retro,
+# Specter, Muse, Hermes run from whatever project you're in, not the Syndicate repo,
+# so a relative "scripts/foo.sh" silently fails everywhere else. Link them to a
+# stable home, same pattern as hooks.
+echo "━━━ Scripts ━━━"
+SYNDICATE_SCRIPTS="${SYNDICATE_DIR}/scripts"
+mkdir -p "$SYNDICATE_SCRIPTS"
+find "${SCRIPT_DIR}/scripts" -maxdepth 1 -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
+for scr in "${SCRIPT_DIR}/scripts/"*.sh; do
+    [ -e "$scr" ] || continue
+    sname="$(basename "$scr")"
+    starget="${SYNDICATE_SCRIPTS}/${sname}"
+    [ -L "$starget" ] && rm "$starget"
+    ln -sf "$scr" "$starget"
+done
+echo "  ✓ Scripts linked to ~/.syndicate/scripts/ (recall, loki-log, investigation-memory, …)"
+echo ""
+
 # --- 3. Install Hooks ---
 echo "━━━ Hooks ━━━"
 

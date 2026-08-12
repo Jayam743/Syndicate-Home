@@ -76,7 +76,7 @@ log. This is automatic — do NOT ask "should I log this?". Loki is a self-sharp
 engine; it only sharpens if findings are recorded. For each finding run:
 
 ```
-scripts/loki-log.sh --month <YYYY-MM> --status <applied|open|carried|wontfix> \
+~/.syndicate/scripts/loki-log.sh --month <YYYY-MM> --status <applied|open|carried|wontfix> \
   --severity <low|medium|high> \
   --finding "<one-line finding>" \
   --doctrine "<what the doctrine says / 'no rule existed'>" \

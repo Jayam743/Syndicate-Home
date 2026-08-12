@@ -21,7 +21,7 @@ export const meta = {
 //   intent: string — the campaign's overall goal (what the whole batch is FOR).
 //           Used by the oversight seam to judge trajectory drift.
 //   priorContext: string — recall brief (relevant past sessions + merge history).
-//           Odin fills this from scripts/recall.sh so oversight judges against
+//           Odin fills this from ~/.syndicate/scripts/recall.sh so oversight judges against
 //           history, not just this run. This is what BJ's stateless design can't do.
 //   overseeConfidenceFloor: number 0-100 — HOLD if oversight confidence drops
 //           below this (default 50).

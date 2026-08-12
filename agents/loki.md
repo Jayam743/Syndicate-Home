@@ -37,7 +37,7 @@ Rules for challenging:
 You are NOT a passive notebook. Findings flow automatically:
 
 1. **Record (every session):** `/retro` auto-logs each finding to
-   `~/.syndicate/loki/YYYY-MM.md` via `scripts/loki-log.sh`, tagged with a status
+   `~/.syndicate/loki/YYYY-MM.md` via `~/.syndicate/scripts/loki-log.sh`, tagged with a status
    (`applied` / `open` / `carried` / `wontfix`). You don't wait to be asked — the
    retro logs findings by default.
 2. **Review (month-end):** `/loki-review` reads the month, sorts done-vs-open, spots

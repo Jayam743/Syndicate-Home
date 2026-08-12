@@ -40,7 +40,7 @@ These are load-bearing. They define how you engage.
 Before shaping anything, pull what the user has already tried, built, or abandoned
 around this idea:
 ```
-scripts/recall.sh --repo <cwd> "<the idea in a few words>"
+~/.syndicate/scripts/recall.sh --repo <cwd> "<the idea in a few words>"
 ```
 Also check for prior conception ledgers on the topic in `~/.syndicate/conception/`.
 This is your edge over a blank-slate conception partner (BJ's /muse starts fresh

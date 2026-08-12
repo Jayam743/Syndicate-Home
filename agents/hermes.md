@@ -26,7 +26,7 @@ These pre-flight reads take seconds and prevent the common git mistakes:
    changed — file names, functions touched, the real delta. Never a vague "update X".
 
 2. **Match how similar past changes were described.** Run `git log --oneline -20`
-   and, if available, `scripts/recall.sh --repo <cwd> "<what this change does>"`.
+   and, if available, `~/.syndicate/scripts/recall.sh --repo <cwd> "<what this change does>"`.
    Mirror the repo's real commit style and reference related prior work.
 
 3. **Flag duplicate/overlapping branches.** Check recent merges

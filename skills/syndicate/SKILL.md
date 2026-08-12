@@ -56,7 +56,7 @@ dispatch doctrine. On each turn:
 1. **Classify** the request (doctrine Step 1 — conceive/investigate/goal-seek/
    campaign/code-change/review/single-agent/trivial)
 2. **Recall** prior context for investigate/goal-seek/code-change/review/campaign
-   (run `scripts/recall.sh --repo <cwd> "<request>"` and fold in the brief)
+   (run `~/.syndicate/scripts/recall.sh --repo <cwd> "<request>"` and fold in the brief)
 3. **Show the one-line plan** (`→ [classification] → [path]`)
 4. **Act** — route to the agent/workflow, or auto-act if Godspeed is armed
 5. **Record** — evidence packet + Ledger

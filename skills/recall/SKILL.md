@@ -17,7 +17,7 @@ topic AND the repo's recent merge history, so you start warm, not cold.
 ## What It Does
 
 ```
-scripts/recall.sh --repo <repo> "your question"
+~/.syndicate/scripts/recall.sh --repo <repo> "your question"
 ```
 
 1. **Searches your existing session transcripts** (`~/.claude/projects/*/*.jsonl`)
@@ -55,7 +55,7 @@ transfer" — your past work becomes searchable without migration or risk.
 ## Options
 
 ```
-scripts/recall.sh --max 3 --repo /path/to/repo --mrs 10 "query"
+~/.syndicate/scripts/recall.sh --max 3 --repo /path/to/repo --mrs 10 "query"
 ```
 - `--max N` — how many past sessions (default 3)
 - `--repo DIR` — which repo's merge history (default: cwd)
