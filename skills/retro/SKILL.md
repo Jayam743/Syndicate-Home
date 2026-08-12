@@ -30,21 +30,31 @@ happened and stop.
 
 ## The report (only if there's real activity)
 
-This is a **read-only audit** — do not edit project files, commit, or push. (The ONE
-exception: step 6 appends your findings to Loki's log via `loki-log.sh`. That's the
-skill's own bookkeeping, not a change to the user's project.) Route per the
+This is a **read-only audit** — do not edit project files, commit, or push. (Two
+exceptions, both the skill's own bookkeeping, not changes to the user's project:
+step 1 appends a cost line via `cost-report.sh`, and step 6 appends findings via
+`loki-log.sh`.) Route per the
 doctrine: Ledger owns accounting, Odin owns routing facts, Loki owns critique.
 
 Be HONEST about uncertainty. If a number or model is not available to you, say
 "not reported" — never guess. Label inferred values as (inferred) with the basis.
 
-### 1. Token usage (Ledger)
-- **The model cannot see its own token meter.** Do NOT type a total you "estimate" —
-  that's fabrication. The honest answer for session total is: "run `/cost`" (harness-
-  sourced) or read the SessionEnd ledger hook output.
+### 1. Token usage + cost (Ledger)
+- **Run the cost report** — the transcript records usage + model per message, so we
+  compute cost ourselves (and get a per-MODEL breakdown `/cost` can't):
+  ```
+  ~/.syndicate/scripts/cost-report.sh --append "<short session label>" --date <YYYY-MM-DD>
+  ```
+  This prints total $, the per-model table, and the **Opus 4.8 % — the delegation
+  metric** — and appends a dated line to `~/.syndicate/ledger/costs.md` for trend
+  tracking. Show the user the total and the Opus-4.8 share.
+- **Interpret the Opus-4.8 %:** high (>70%) means the main loop did heavy work itself
+  instead of delegating — flag it as a Cost Directive finding in §4. Low means
+  delegation discipline is holding.
+- `/cost` (client-side) is the harness's own tally if the user wants to cross-check;
+  the model can't see its output, so cost-report.sh is the model-visible source.
 - Per-subagent breakdown: a table of every subagent spawned — label/task, tokens,
-  tool-uses, duration — using ONLY the completion/usage numbers actually reported to
-  you in-session. Mark still-running ones "pending".
+  tool-uses — using the completion/usage numbers reported to you in-session.
 
 ### 2. Models used (Ledger + Odin)
 - Main session model (from the environment block — this is known, not inferred).
@@ -65,6 +75,10 @@ Be HONEST about uncertainty. If a number or model is not available to you, say
   - Did recall (Step 1.5) fire when it should have — and if skipped, was the skip
     STATED (user-supplied context is a valid, but must-be-disclosed, skip reason)?
   - For git-history work: was `git fetch` run before reconstructing merge state?
+  - **Cost Directive: was the Opus-4.8 % high (>70%)?** If so, the main loop did
+    heavy work (investigations, builds, reviews) inline on the top tier instead of
+    spawning Specter/Forge/Athena or their workflows. Cite the specific tasks that
+    should have been delegated. This is usually the highest-$ finding of the session.
 - For each: what happened, what the doctrine says, severity.
 
 ### 5. Recommendations (Loki)

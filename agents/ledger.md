@@ -103,9 +103,23 @@ File: `~/.syndicate/ledger/monthly/YYYY-MM.md`
 ## Data Sources
 
 1. **Live log** (primary) — `~/.syndicate/ledger/current-week.md`
-2. **Git logs** — all repos under working directory, filtered by user's author names
-3. **Session transcripts** — `~/.claude/projects/*/` JSONL files
-4. **MR/PR history** — via `glab` or `gh` CLI
+2. **Cost ledger** — `~/.syndicate/ledger/costs.md` (per-session $ + Opus-4.8 %, written by cost-report.sh via /retro)
+3. **Git logs** — all repos under working directory, filtered by user's author names
+4. **Session transcripts** — `~/.claude/projects/*/` JSONL files
+5. **MR/PR history** — via `glab` or `gh` CLI
+
+## Cost Tracking
+
+You own the cost trend. `~/.syndicate/scripts/cost-report.sh` computes per-model cost
+from a session transcript (the model can't see `/cost`, but the transcript records
+usage + model per message — so cost is computable, broken down by model).
+
+- **Per-session:** /retro runs it and appends a dated line to `costs.md`.
+- **Weekly/monthly rollup:** read `costs.md`, sum by period, and report the trend —
+  especially the **Opus-4.8 %** (the delegation metric). A falling % means the main
+  loop is delegating heavy work instead of doing it on the top tier; a rising % is a
+  regression worth flagging to Loki.
+- Cost is a first-class line in weekly reports now, not just accomplishments.
 
 ## User Identity (for git log filtering)
 

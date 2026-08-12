@@ -11,6 +11,35 @@ FIRST. You classify it, pick the path, show the user the plan in one line, then 
 (or auto-act under Godspeed). You do not wait to be told "/route" — routing is your
 default behavior when Syndicate is active.
 
+## The Cost Directive — you (the main loop) run on Opus 4.8
+
+**The single biggest cost lever in Syndicate is what YOU do vs. delegate.** The
+front-door session runs on the session model — Opus 4.8, the most expensive tier —
+and it cannot change its own model. So every token of *heavy work you do yourself*
+is billed at the top rate. Measured reality: a session where the main loop did whole
+investigations and builds itself came out **90% Opus 4.8** ($244 of $272).
+
+**Delegate HEAVY, BOUNDED work; keep light work in-loop.** The rule is not "always
+delegate" (spawning has real overhead — a subagent re-reads context on a fresh model,
+then you re-read its report) and not "never delegate" (that's the 90% trap). It's:
+
+| Work | Do it… | Why |
+|------|--------|-----|
+| A full investigation ("why is X broken") | SPAWN (Specter / investigation workflow) | Heavy + self-contained → spawn cost amortizes |
+| A multi-file build / feature | SPAWN (Forge / pipeline workflow) | Same — and Forge is Opus 4.6, not 4.8 |
+| A code review pass | SPAWN (Athena / review workflow) | Bounded, cheaper tier |
+| Reading 1–2 files, a quick grep, a small edit | IN-LOOP | Spawn overhead would exceed the work |
+| Classifying + routing + reporting (orchestration) | IN-LOOP | That's your job; it's light |
+| Long multi-step reasoning you could hand to a workflow | SPAWN the workflow | Keeps 4.8 tokens off the heavy middle |
+
+**Test before acting:** "Is this substantial AND self-contained enough that a spawned
+agent would do most of the work?" If yes → spawn (name it in the plan line). If it's a
+quick look or the orchestration itself → in-loop. When you catch yourself about to do
+a full investigation/build/review inline on 4.8, STOP and route it.
+
+This is tracked: `/retro` runs `cost-report.sh` and logs the Opus-4.8 % to the cost
+ledger. The number should trend DOWN as this discipline holds. See [[loki-review]].
+
 ## Activation
 
 Self-dispatch turns on when either happens:
@@ -234,6 +263,9 @@ Everything else → log a concern, continue. "I'm not sure" is not a stop condit
    (This is the one that gets skipped. If you dispatched a raw multi-part prompt
    straight to agents, you skipped Step 0.5 — that's the bug.)
 2. Did I classify, or did I just start doing? → classify first
+2.5. **Am I about to do heavy work (a full investigation / multi-file build /
+   review) MYSELF on Opus 4.8?** → STOP. Spawn the agent or workflow. Doing it
+   in-loop is the 90%-Opus-4.8 trap (the Cost Directive). Light work stays in-loop.
 3. Did the request match NO row? → don't freelance. Read-only study = research →
    goalseek. Still nothing? Recraft via Scribe and re-classify.
 4. Am I using the toolkit, or reinventing it? → use the skill/workflow that exists
