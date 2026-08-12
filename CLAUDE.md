@@ -62,16 +62,22 @@ Agent markdown files live in `agents/`. Each file defines:
 
 ## Model Tiers
 
-| Tier | Agents | Primary | Fallback | Universal |
-|------|--------|---------|----------|-----------|
-| 1 — Command | Odin, Muse, Loki, Ledger, Specter | opus 4.8 | opus 4.6 | session model + warn |
-| 2 — Execution | Forge, Athena, Gauntlet, Titan, Safecracker, Scribe | opus 4.7 | opus 4.6 | session model + warn |
-| 3 — Utility | Hermes, Herald, Cipher | sonnet 4 | session model | — |
+Model chosen by **role, not rank** (full table + rationale in `config/models.md`):
+
+| Model | Agents | Role type |
+|-------|--------|-----------|
+| opus 4.8 | Odin, Muse, Loki, Specter | orchestrate / conceive / attack / investigate |
+| opus 4.7 | Athena | reason about bugs |
+| opus 4.6 | Forge, Scribe, Titan, Safecracker | code/infra/secrets (blast-radius → keep Opus) |
+| sonnet 4.6 | Gauntlet, Ledger | run tests / format reports (mechanical) |
+| haiku 4.5 | Hermes, Herald, Cipher | git / messages / conversion (pure formula) |
 
 **Fallback rules:**
-- All Opus agents → Opus 4.6 (one shared fallback, no intermediate steps)
-- Sonnet agents → session model (they're already running light work)
-- Universal fallback: if everything is unavailable, use session model + warn user
+- Stays in-family (opus→opus, sonnet→sonnet, haiku→haiku) or drops to `session`
+- Never crosses UP a tier
+- `session` = universal floor; warn on any degradation
+- Cost: all Opus = same rate; real savings are Opus→Sonnet→Haiku and not
+  over-using Opus agents (delegation discipline)
 
 ## Safety Guards
 

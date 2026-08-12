@@ -1,41 +1,54 @@
 # Syndicate Model Configuration
 
-## Model Tiers
+## Tiering Principle — by ROLE, not by rank
 
-| Tier | Primary | Fallback | Universal Fallback | Rule |
-|------|---------|----------|-------------------|------|
-| **1 — Command** | Opus 4.8 | Opus 4.6 | Session model + warn | These agents make decisions. |
-| **2 — Execution** | Opus 4.7 | Opus 4.6 | Session model + warn | These agents do critical work. |
-| **3 — Utility** | Sonnet 4 | Session model + warn | — | Formulaic work. Don't waste Sonnet 5 on git commands. |
+The model an agent gets is decided by what it DOES, not by a fixed rank:
+
+- **Think / plan / attack / reframe** → Opus (4.6–4.8). Reasoning that, if weak,
+  produces subtly-wrong output that's expensive to catch.
+- **Formula / rule-following / mechanical** → Sonnet 4.6 or Haiku 4.5. Running
+  a known command, filling a template, converting a file.
+- **Blast-radius exception:** an agent whose *operations* are formulaic but whose
+  *mistakes* are costly/irreversible (infra, secrets, code that ships) stays on
+  Opus even though the work looks mechanical. The token saving isn't worth a
+  hard-to-reverse error.
 
 ## Agent Assignments
 
-| Agent | Tier | Primary | Fallback | Reason |
-|-------|------|---------|----------|--------|
-| **Odin** | 1 | Opus 4.8 | Opus 4.6 | Routing requires strongest reasoning |
-| **Loki** | 1 | Opus 4.8 | Opus 4.6 | Argumentation and pattern recognition |
-| **Ledger** | 1 | Opus 4.8 | Opus 4.6 | Full context comprehension for tracking |
-| **Specter** | 1 | Opus 4.8 | Opus 4.6 | Multi-angle investigation needs strongest reasoning |
-| **Muse** | 1 | Opus 4.8 | Opus 4.6 | Conception/reframing needs strongest reasoning |
-| **Forge** | 2 | Opus 4.7 | Opus 4.6 | Code quality needs strong model |
-| **Athena** | 2 | Opus 4.7 | Opus 4.6 | Review accuracy is critical |
-| **Gauntlet** | 2 | Opus 4.7 | Opus 4.6 | Test logic needs reasoning |
-| **Titan** | 2 | Opus 4.7 | Opus 4.6 | Infra safety needs good judgment |
-| **Safecracker** | 2 | Opus 4.7 | Opus 4.6 | Security-sensitive operations |
-| **Scribe** | 2 | Opus 4.7 | Opus 4.6 | Prompt crafting requires intent inference |
-| **Hermes** | 3 | Sonnet 4 | Session model | Git ops are formulaic commands |
-| **Herald** | 3 | Sonnet 4 | Session model | Message drafting is straightforward |
-| **Cipher** | 3 | Sonnet 4 | Session model | Document conversion is mechanical |
+| Agent | Role type | Model | Fallback | Reason |
+|-------|-----------|-------|----------|--------|
+| **Odin** | orchestrate/route | Opus 4.8 | Opus 4.6 | Routing needs the strongest reasoning |
+| **Muse** | conceive/reframe | Opus 4.8 | Opus 4.6 | Conception + challenge needs top tier |
+| **Loki** | attack/argue | Opus 4.8 | Opus 4.6 | Devil's advocate needs top tier |
+| **Specter** | investigate | Opus 4.8 | Opus 4.6 | Multi-angle diagnosis needs top tier |
+| **Athena** | reason about bugs | Opus 4.7 | Opus 4.6 | Review accuracy is critical |
+| **Forge** | write code | Opus 4.6 | session | Blast-radius: weak coders ship subtle bugs (Axiom 8) |
+| **Scribe** | infer intent | Opus 4.6 | session | Recraft quality needs real reasoning |
+| **Titan** | infra ops | Opus 4.6 | session | Blast-radius: wrong AWS action is costly/irreversible |
+| **Safecracker** | secret ops | Opus 4.6 | session | Blast-radius: secrets are the highest-stakes surface |
+| **Gauntlet** | run/write tests | Sonnet 4.6 | session | Running tests is mechanical; edge-case writing is backstopped by Athena/Loki/Specter |
+| **Ledger** | log/format reports | Sonnet 4.6 | session | Tracking + report formatting is formula |
+| **Hermes** | git commands | Haiku 4.5 | session | `git add/commit/push` — commands, not creativity |
+| **Herald** | draft messages | Haiku 4.5 | session | Fill a template with provided content |
+| **Cipher** | doc→markdown | Haiku 4.5 | session | `markitdown in.pdf > out.md` — mechanical |
 
-## Why Sonnet 4 for Tier 3?
+**Cost note:** all Opus versions (4.6/4.7/4.8) are the SAME rate ($5/$25). Choosing
+4.6 over 4.8 for Forge/Scribe/Titan/Safecracker does NOT cut the rate — it's a
+capability-vs-token-usage choice within one price tier. Real rate savings come only
+from dropping to Sonnet ($3/$15, −40%) or Haiku ($1/$5, −80%). The biggest lever of
+all is not making Opus agents run when a cheaper agent (or the workflow) should —
+see [[loki-review]] on delegation discipline.
 
-Tier 3 agents do formulaic work:
-- Hermes: `git add`, `git commit`, `git push`, `gh pr create` — commands, not creativity
-- Herald: fill a template with content the user provided — formatting, not reasoning
-- Cipher: run `markitdown input.pdf > output.md` — mechanical conversion
+## Why the mid/low tiers land where they do
 
-Sonnet 5 is overkill for this. Sonnet 4 handles these perfectly — same family, lower cost,
-plenty of capability for structured/formulaic tasks. Don't waste the latest model on `git push`.
+- **Gauntlet → Sonnet 4.6:** running tests is pure rule-following; its one reasoning
+  mode (designing edge cases) is a lighter version of what Athena/Loki/Specter already
+  do at high tier, so it's backstopped.
+- **Ledger → Sonnet 4.6:** scanning git logs and formatting a weekly report is
+  structured formula work, not reasoning.
+- **Hermes/Herald/Cipher → Haiku 4.5:** git commands, message templating, and file
+  conversion are the most mechanical work in the crew. Haiku handles them at 1/5th
+  the Sonnet rate. Don't pay to think about `git push`.
 
 ## Universal Fallback Policy
 
@@ -93,10 +106,11 @@ Code on AWS Bedrock). Plain Anthropic IDs like `claude-opus-4-7` are NOT valid h
 and cause "invalid model identifier" errors — always use the `us.anthropic.*` form.
 
 ```
-opus 4.8  → us.anthropic.claude-opus-4-8
-opus 4.7  → us.anthropic.claude-opus-4-7
-opus 4.6  → us.anthropic.claude-opus-4-6-v1[1m]   (session/1M-context form)
-sonnet 4  → us.anthropic.claude-sonnet-4-5-20250929-v1:0
+opus 4.8   → us.anthropic.claude-opus-4-8
+opus 4.7   → us.anthropic.claude-opus-4-7
+opus 4.6   → us.anthropic.claude-opus-4-6-v1
+sonnet 4.6 → us.anthropic.claude-sonnet-4-6
+haiku 4.5  → us.anthropic.claude-haiku-4-5-20251001-v1:0
 ```
 
 **Verified available on this account** (via `aws bedrock list-inference-profiles`,
@@ -106,9 +120,11 @@ switch these back to plain IDs (`claude-opus-4-8`, etc.).
 
 ## Fallback Rules
 
-1. **All Opus agents fall to Opus 4.6** — one shared fallback, no intermediate steps
-2. **Sonnet agents fall to session model** — they're already running light work
-3. **Universal fallback is always available** — it's the model you're talking to right now
-4. **Always warn on degradation** — user should know when quality might differ
-5. **Log every fallback** — Loki tracks patterns for monthly improvement proposals
-6. **Never silently degrade** — transparency over convenience
+1. **Fallback stays in-family or drops to session** — opus→opus, sonnet→sonnet,
+   haiku→haiku, or `session` for an agent already at the cheapest model we'd run it on.
+2. **Never cross UP a tier on fallback** — a Haiku agent never falls back to Opus.
+3. **`session` = the universal floor** — whatever model Claude Code is running is
+   always available; it's the last resort when a specific model is rate-limited/down.
+4. **Always warn on degradation** — user should know when quality might differ.
+5. **Log every fallback** — Loki tracks patterns for monthly improvement proposals.
+6. **Never silently degrade** — transparency over convenience.

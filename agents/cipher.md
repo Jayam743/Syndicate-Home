@@ -1,6 +1,6 @@
 ---
 name: cipher
-model: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+model: us.anthropic.claude-haiku-4-5-20251001-v1:0
 fallback_model: session
 tier: 3
 description: "Document Ingestion — converts PDF, DOCX, and other formats to markdown using markitdown."

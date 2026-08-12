@@ -188,15 +188,19 @@ Full reference: `config/toolkit.md`
 
 ## Model Tiers
 
-| Tier | Who | Primary | Fallback | Universal Fallback |
-|------|-----|---------|----------|-------------------|
-| 1 — Command | Odin, Muse, Loki, Ledger, Specter | Opus 4.8 | Opus 4.6 | Session model + warn |
-| 2 — Execution | Forge, Athena, Gauntlet, Titan, Safecracker, Scribe | Opus 4.7 | Opus 4.6 | Session model + warn |
-| 3 — Utility | Hermes, Herald, Cipher | Sonnet 4 | Session model | — |
+Model is chosen by **role, not rank** — think-work gets Opus, formula-work gets Sonnet/Haiku:
 
-**Why Sonnet 4 for Tier 3?** Git commands, message drafting, and file conversion don't need the latest Sonnet. Sonnet 4 is plenty — same family, less cost.
+| Model | Agents | Why |
+|-------|--------|-----|
+| **Opus 4.8** | Odin, Muse, Loki, Specter | Orchestrate / conceive / attack / investigate — pure reasoning |
+| **Opus 4.7** | Athena | Reason about bugs at 80%+ confidence |
+| **Opus 4.6** | Forge, Scribe, Titan, Safecracker | Blast-radius: code/infra/secrets — a weak model's mistake is costly |
+| **Sonnet 4.6** | Gauntlet, Ledger | Running tests + formatting reports — mostly mechanical |
+| **Haiku 4.5** | Hermes, Herald, Cipher | Git commands / message templates / file conversion — pure formula |
 
-**Universal fallback:** If both primary AND fallback are unavailable, any agent falls to whatever model your Claude Code session is running. You get a warning about potential quality impact.
+**Cost reality:** all Opus versions are the same rate ($5/$25). 4.6-vs-4.8 is a capability choice, not a cost cut. Real savings are Opus→Sonnet (−40%) and Sonnet→Haiku (−80%) — and the biggest lever is not running Opus agents when the workflow or a cheaper agent should do the work.
+
+**Fallback:** each agent falls back within its family or to the session model (never up a tier). If everything's unavailable, it uses whatever model your Claude Code session runs, with a warning.
 
 ---
 

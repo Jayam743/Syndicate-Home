@@ -88,25 +88,31 @@ for agent in "${REPO_ROOT}/agents/"*.md; do
     model=$(grep "^model:" "$agent" | head -1 | sed 's/model: *//')
     fallback=$(grep "^fallback_model:" "$agent" | head -1 | sed 's/fallback_model: *//')
 
-    # Rule: opus must fallback to opus (all opus agents → opus 4.6)
-    if echo "$model" | grep -qi "opus"; then
+    # Universal fallback rule: a fallback must stay in the SAME family
+    # (opus→opus, sonnet→sonnet) OR be "session" (the universal floor for an
+    # agent already at the cheapest model we'd run it on). Never cross UP a tier.
+    if [ "$fallback" = "session" ]; then
+        : # session is always valid — it's the universal floor
+    elif echo "$model" | grep -qi "opus"; then
         if ! echo "$fallback" | grep -qi "opus"; then
-            echo "  FAIL: ${name} — opus model must fallback to opus (got: ${fallback})"
+            echo "  FAIL: ${name} — opus model must fallback to opus or 'session' (got: ${fallback})"
             ERRORS=$((ERRORS + 1))
         fi
-    fi
-
-    # Rule: sonnet agents can fallback to "session" (universal fallback)
-    if echo "$model" | grep -qi "sonnet"; then
-        if [ "$fallback" != "session" ] && ! echo "$fallback" | grep -qi "sonnet"; then
-            echo "  FAIL: ${name} — sonnet model must fallback to 'session' or lower sonnet (got: ${fallback})"
+    elif echo "$model" | grep -qi "sonnet"; then
+        if ! echo "$fallback" | grep -qi "sonnet"; then
+            echo "  FAIL: ${name} — sonnet model must fallback to sonnet or 'session' (got: ${fallback})"
+            ERRORS=$((ERRORS + 1))
+        fi
+    elif echo "$model" | grep -qi "haiku"; then
+        if ! echo "$fallback" | grep -qi "haiku"; then
+            echo "  FAIL: ${name} — haiku model must fallback to haiku or 'session' (got: ${fallback})"
             ERRORS=$((ERRORS + 1))
         fi
     fi
 done
 
 if [ "$ERRORS" -eq 0 ]; then
-    echo "  OK: all fallbacks valid (opus→opus 4.6, sonnet→session)"
+    echo "  OK: all fallbacks valid (same-family or session floor)"
 fi
 
 # --- 3b. Spawn Authority (Axiom 11) ---

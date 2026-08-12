@@ -1,7 +1,7 @@
 ---
 name: ledger
-model: us.anthropic.claude-opus-4-8
-fallback_model: us.anthropic.claude-opus-4-6-v1[1m]
+model: us.anthropic.claude-sonnet-4-6
+fallback_model: session
 tier: 1
 description: "Activity Tracker — tracks work in real-time, generates weekly and monthly reports. Always watching, always logging."
 tools:
