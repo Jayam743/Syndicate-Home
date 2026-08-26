@@ -19,25 +19,35 @@ Stages:
      - Additions: "repo path, read-only first, container ID"
      - Output: [refined prompt, truncated]
      - Duration: ~5s
+     - model_intended: us.anthropic.claude-opus-4-8
+     - model_used: us.anthropic.claude-opus-4-8
 
   2. Specter
      - Hypotheses tested: 3
      - Root cause: COPPERMIND_PATH unset in compose env
      - Options presented: A (recommended), B, C
      - User chose: A
+     - model_intended: us.anthropic.claude-opus-4-8
+     - model_used: us.anthropic.claude-opus-4-8
 
   3. Forge
      - Files modified: services/rumrunner/compose.yml
      - Lines changed: +2
      - Lint: passed
+     - model_intended: us.anthropic.claude-opus-4-8
+     - model_used: us.anthropic.claude-opus-4-8
 
   4. Athena
      - Findings: 0 (clean)
+     - model_intended: us.anthropic.claude-opus-4-7
+     - model_used: us.anthropic.claude-opus-4-7
 
   5. Hermes
      - Branch: fix/483-headscale-coppermind-path-env
      - MR: !147
      - Target: release/2.0.1
+     - model_intended: us.anthropic.claude-haiku-4-5-20251001-v1:0
+     - model_used: us.anthropic.claude-haiku-4-5-20251001-v1:0
 
 Outcome: MR opened, awaiting review
 Duration: ~4 minutes total
@@ -65,6 +75,11 @@ Logged to: Ledger (current-week.md)
 - **Honest** — if something failed or was retried, say so
 - **Concise** — one line per stage is enough, not full transcripts
 - **Traceable** — includes branch name, MR number, file paths
+- **Model-auditable** — `model_intended` (from agent frontmatter) and `model_used`
+  (actual resolved model, emitted per-subagent in the transcript JSONL as `.model`)
+
+Loki's monthly review asserts model_used == model_intended per spawn to detect any
+silent fallthrough (e.g., Haiku resolving to Opus due to pin misconfiguration).
 
 ## Borrowed Principle
 

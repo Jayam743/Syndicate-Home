@@ -55,6 +55,27 @@ while IFS= read -r -d '' installed; do
     fi
 done < <(find "${AGENTS_DIR}" -maxdepth 1 -name "*.md" -print0 2>/dev/null)
 
+# --- Frontmatter model: drift detection ---
+echo ""
+echo "--- Checking frontmatter model: drift ---"
+
+while IFS= read -r -d '' agent; do
+    name="$(basename "$agent")"
+    installed="${AGENTS_DIR}/${name}"
+
+    # Only check if the installed copy exists and is readable
+    [ -f "$installed" ] || continue
+
+    repo_model="$(grep "^model:" "$agent" | head -1 | sed 's/model: *//')"
+    installed_model="$(grep "^model:" "$installed" | head -1 | sed 's/model: *//')"
+
+    if [ -n "$repo_model" ] && [ -n "$installed_model" ] && [ "$repo_model" != "$installed_model" ]; then
+        echo "  WARN: ${name} — installed model differs from repo"
+        echo "    Repo:      ${repo_model}"
+        echo "    Installed: ${installed_model}"
+    fi
+done < <(find "${REPO_ROOT}/agents" -name "*.md" -print0)
+
 # Summary
 echo ""
 echo "=========================="
