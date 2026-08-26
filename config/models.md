@@ -1,93 +1,96 @@
 # Syndicate Model Configuration
 
-## Tiering Principle — by ROLE, not by rank
+## 3-Band / 4-Pin Architecture
 
-The model an agent gets is decided by what it DOES, not by a fixed rank:
+This account runs on AWS Bedrock with a **hard limit of 4 pinned model slots**.
+Agents are assigned to one of 3 bands; each band maps to a pinned model.
 
-- **Think / plan / attack / reframe** → Opus (4.6–4.8). Reasoning that, if weak,
-  produces subtly-wrong output that's expensive to catch.
-- **Formula / rule-following / mechanical** → Sonnet 4.6 or Haiku 4.5. Running
-  a known command, filling a template, converting a file.
-- **Blast-radius exception:** an agent whose *operations* are formulaic but whose
-  *mistakes* are costly/irreversible (infra, secrets, code that ships) stays on
-  Opus even though the work looks mechanical. The token saving isn't worth a
-  hard-to-reverse error.
-
-## Agent Assignments
-
-| Agent | Role type | Model | Fallback | Reason |
-|-------|-----------|-------|----------|--------|
-| **Odin** | orchestrate/route | Opus 4.8 | Opus 4.6 | Routing needs the strongest reasoning |
-| **Muse** | conceive/reframe | Opus 4.8 | Opus 4.6 | Conception + challenge needs top tier |
-| **Loki** | attack/argue | Opus 4.8 | Opus 4.6 | Devil's advocate needs top tier |
-| **Specter** | investigate | Opus 4.8 | Opus 4.6 | Multi-angle diagnosis needs top tier |
-| **Athena** | reason about bugs | Opus 4.7 | Opus 4.6 | Review accuracy is critical |
-| **Forge** | write code | Opus 4.6 | session | Blast-radius: weak coders ship subtle bugs (Axiom 8) |
-| **Scribe** | infer intent | Opus 4.6 | session | Recraft quality needs real reasoning |
-| **Titan** | infra ops | Opus 4.6 | session | Blast-radius: wrong AWS action is costly/irreversible |
-| **Safecracker** | secret ops | Opus 4.6 | session | Blast-radius: secrets are the highest-stakes surface |
-| **Gauntlet** | run/write tests | Sonnet 4.6 | session | Running tests is mechanical; edge-case writing is backstopped by Athena/Loki/Specter |
-| **Ledger** | log/format reports | Sonnet 4.6 | session | Tracking + report formatting is formula |
-| **Hermes** | git commands | Haiku 4.5 | session | `git add/commit/push` — commands, not creativity |
-| **Herald** | draft messages | Haiku 4.5 | session | Fill a template with provided content |
-| **Cipher** | doc→markdown | Haiku 4.5 | session | `markitdown in.pdf > out.md` — mechanical |
-
-**Cost note:** all Opus versions (4.6/4.7/4.8) are the SAME rate ($5/$25). Choosing
-4.6 over 4.8 for Forge/Scribe/Titan/Safecracker does NOT cut the rate — it's a
-capability-vs-token-usage choice within one price tier. Real rate savings come only
-from dropping to Sonnet ($3/$15, −40%) or Haiku ($1/$5, −80%). The biggest lever of
-all is not making Opus agents run when a cheaper agent (or the workflow) should —
-see [[loki-review]] on delegation discipline.
-
-## Why the mid/low tiers land where they do
-
-- **Gauntlet → Sonnet 4.6:** running tests is pure rule-following; its one reasoning
-  mode (designing edge cases) is a lighter version of what Athena/Loki/Specter already
-  do at high tier, so it's backstopped.
-- **Ledger → Sonnet 4.6:** scanning git logs and formatting a weekly report is
-  structured formula work, not reasoning.
-- **Hermes/Herald/Cipher → Haiku 4.5:** git commands, message templating, and file
-  conversion are the most mechanical work in the crew. Haiku handles them at 1/5th
-  the Sonnet rate. Don't pay to think about `git push`.
-
-## Universal Fallback Policy
-
-When BOTH primary and fallback models are unavailable:
+### Pinned set (exactly 4 — Bedrock hard limit)
 
 ```
-Priority chain:
-1. Primary model → use it
-2. Primary unavailable → Fallback model → use it
-3. Fallback unavailable → Session model (whatever CC is running) → use it + WARN
-
-Warning format:
-  ⚠ [agent-name] running on session model (fallback chain exhausted).
-  Quality may be reduced. Token usage may differ from expected.
-  Primary: [model] — unavailable
-  Fallback: [model] — unavailable
-  Using: [session model]
+opus-4-8   → us.anthropic.claude-opus-4-8
+opus-4-7   → us.anthropic.claude-opus-4-7
+sonnet-4-6 → us.anthropic.claude-sonnet-4-6
+haiku-4-5  → us.anthropic.claude-haiku-4-5-20251001-v1:0
 ```
 
-### What "session model" means
+**opus-4-6 was DROPPED from the pin set.** Opus 4.8 covers it at the same $5/$25 rate
+(no cost difference). This freed the 4th slot for Haiku 4.5, which was previously
+falling back to Opus 4.8 (8x cost inversion).
 
-The model that Claude Code itself is running as (the one answering your messages).
-This is always available — it's what YOU'RE talking to right now.
+> **REQUIRED OPERATOR ACTION:** Re-pin Bedrock to swap `us.anthropic.claude-opus-4-6-v1`
+> out of the inference-profile set and add `us.anthropic.claude-haiku-4-5-20251001-v1:0`
+> in its place. Until this is done, Haiku agents will continue to resolve to Opus 4.8.
 
-### Quality impact of degradation
+### Bug fixed (2026-08-26)
 
-| Agent | On primary | On fallback (4.6) | On session model |
-|-------|-----------|-------------------|-----------------|
-| Odin (routing) | Optimal routing, rare misroutes | Good routing, occasional wrong agent | Acceptable, may need correction |
-| Forge (coding) | Precise, pattern-matching | Solid, slightly more verbose | Capable, may gold-plate |
-| Athena (review) | Catches subtle bugs | Catches obvious bugs | May miss edge cases |
-| Hermes (git) | Clean | Clean | Clean (git is git) |
+Empirically verified via resolution probes that Haiku 4.5 was falling to Opus 4.8
+(8x cost inversion) because Opus occupied 3 of 4 pin slots (4.8, 4.7, 4.6). Collapsing
+to 2 Opus pins frees the slot for Haiku.
 
-### When does this trigger?
+## Band Assignments
 
-- Rate limiting (model temporarily unavailable)
-- Account doesn't have access to a specific model
-- Model deprecated/retired
-- API outage for specific model tier
+### THINK band (Opus 4.8, fallback Opus 4.7)
+
+Agents whose reasoning errors are subtle and expensive to catch.
+
+| Agent | Role | Why think-band |
+|-------|------|----------------|
+| **Odin** | orchestrate/route | Routing needs strongest reasoning |
+| **Muse** | conceive/reframe | Conception + challenge needs top tier |
+| **Loki** | attack/argue | Devil's advocate needs top tier |
+| **Specter** | investigate | Multi-angle diagnosis needs top tier |
+| **Forge** | write code | Blast-radius: weak coders ship subtle bugs |
+| **Scribe** | infer intent | Recraft quality needs real reasoning |
+| **Titan** | infra ops | Blast-radius: wrong AWS action is costly/irreversible |
+| **Safecracker** | secret ops | Blast-radius: secrets are highest-stakes surface |
+| **Athena** | review/bugs | REVIEW-DIVERSITY exception (see below) |
+
+**Athena exception:** model=opus-4-7, fallback=opus-4-8. Athena's primary is
+intentionally different from Odin/Loki/Forge so the reviewer sees code with a
+different model's perspective than the one that wrote/routed it. This is the
+"review-diversity" principle.
+
+> **Opus 4.7's pin is LOAD-BEARING** — it is both the think-band fallback (for all
+> other think agents) AND Athena's review-diversity primary. Do not displace without
+> re-solving review diversity.
+
+### FORMULA band (Sonnet 4.6, fallback Haiku 4.5)
+
+Agents doing structured, rule-following work backstopped by think-band agents.
+
+| Agent | Role | Why formula-band |
+|-------|------|------------------|
+| **Gauntlet** | run/write tests | Running tests is mechanical; edge-case design backstopped by Athena/Loki |
+| **Ledger** | log/format reports | Tracking + report formatting is formula |
+
+### MECHANICAL band (Haiku 4.5, fallback session)
+
+Agents executing pure commands/templates with no reasoning required.
+
+| Agent | Role | Why mechanical-band |
+|-------|------|---------------------|
+| **Hermes** | git commands | `git add/commit/push` — commands, not creativity |
+| **Herald** | draft messages | Fill a template with provided content |
+| **Cipher** | doc conversion | `markitdown in.pdf > out.md` — mechanical |
+
+## Fallback Policy (by band)
+
+```
+THINK band:
+  opus-4-8 → opus-4-7 → session + WARN
+  (Athena: opus-4-7 → opus-4-8 → session + WARN)
+
+FORMULA band:
+  sonnet-4-6 → haiku-4-5 → session + COST-WARN
+
+MECHANICAL band:
+  haiku-4-5 → session + COST-WARN
+```
+
+**session = Opus 4.8 on this account**, so a formula/mechanical agent reaching
+session is a **COST-INCREASE event** (an acknowledged exception to never-cross-up,
+because session is the only universal floor) — log it loudly, never silently.
 
 ### Logging
 
@@ -97,34 +100,41 @@ Every fallback activation is logged for Loki's monthly review:
 - What model was actually used
 - Whether the output quality was acceptable
 
-This data feeds Loki's improvement proposals (pattern: "Forge fell to session model 5 times this month — is our primary model flapping?")
+## Deliberate Trade: 1M-context dropped
 
-## Model IDs (for frontmatter)
+The `[1m]` 1M-context long-context fallback (previously on Odin/Loki/Muse/Specter/Athena)
+is **dropped** — no 1M variant is pinned. Future long-context tasks must plan around
+this limitation (e.g., chunking, summarization before agent dispatch).
 
-Syndicate targets **Bedrock inference-profile IDs** (this environment runs Claude
-Code on AWS Bedrock). Plain Anthropic IDs like `claude-opus-4-7` are NOT valid here
-and cause "invalid model identifier" errors — always use the `us.anthropic.*` form.
+## Cost Note
+
+All Opus versions (4.7/4.8) are the SAME rate ($5/$25). Choosing between them is a
+capability/diversity choice, not a cost choice. Real rate savings come only from
+dropping to Sonnet ($3/$15, -40%) or Haiku ($1/$5, -80%). The biggest lever of all
+is not making Opus agents run when a cheaper agent (or the workflow) should — see
+[[loki-review]] on delegation discipline.
+
+## Bedrock Model IDs (inference-profile form)
 
 ```
 opus 4.8   → us.anthropic.claude-opus-4-8
 opus 4.7   → us.anthropic.claude-opus-4-7
-opus 4.6   → us.anthropic.claude-opus-4-6-v1
 sonnet 4.6 → us.anthropic.claude-sonnet-4-6
 haiku 4.5  → us.anthropic.claude-haiku-4-5-20251001-v1:0
 ```
 
+**Caveat (from BJ's workflow):** The Claude Code "Monitor" primitive and `--channels`
+are gated OFF on Bedrock. Current Loki-observe and Astrolabe tiles use hooks/polling,
+so they are unaffected. Any FUTURE agent relying on background monitoring must account
+for this limitation.
+
 **Verified available on this account** (via `aws bedrock list-inference-profiles`,
 2026-08): opus 4.8, 4.7, 4.6, 4.5, 4.1; sonnet 5, 4.6, 4.5, 4; haiku 4.5; fable 5;
 opus/sonnet 5. If porting Syndicate to a non-Bedrock (direct Anthropic API) setup,
-switch these back to plain IDs (`claude-opus-4-8`, etc.).
+switch to plain IDs (`claude-opus-4-8`, etc.).
 
-## Fallback Rules
+## Future Consideration
 
-1. **Fallback stays in-family or drops to session** — opus→opus, sonnet→sonnet,
-   haiku→haiku, or `session` for an agent already at the cheapest model we'd run it on.
-2. **Never cross UP a tier on fallback** — a Haiku agent never falls back to Opus.
-3. **`session` = the universal floor** — whatever model Claude Code is running is
-   always available; it's the last resort when a specific model is rate-limited/down.
-4. **Always warn on degradation** — user should know when quality might differ.
-5. **Log every fallback** — Loki tracks patterns for monthly improvement proposals.
-6. **Never silently degrade** — transparency over convenience.
+Sonnet 5 is a possible upgrade for the formula band PENDING rate verification. Do not
+pin an unknown-rate model into the cost-control band without confirming it stays at or
+below the $3/$15 Sonnet rate.

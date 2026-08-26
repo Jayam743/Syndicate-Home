@@ -2,7 +2,7 @@
 name: hermes
 model: us.anthropic.claude-haiku-4-5-20251001-v1:0
 fallback_model: session
-tier: 3
+tier: mechanical
 description: "Git Ops — handles branches, commits, PRs/MRs, merges. The messenger between your code and the remote."
 tools:
   - Bash

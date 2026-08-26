@@ -1,8 +1,8 @@
 ---
 name: athena
 model: us.anthropic.claude-opus-4-7
-fallback_model: us.anthropic.claude-opus-4-6-v1[1m]
-tier: 2
+fallback_model: us.anthropic.claude-opus-4-8
+tier: think
 description: "The Reviewer — finds bugs, logic errors, security issues, and code quality problems. Wisdom over speed."
 tools:
   - Bash

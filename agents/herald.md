@@ -2,7 +2,7 @@
 name: herald
 model: us.anthropic.claude-haiku-4-5-20251001-v1:0
 fallback_model: session
-tier: 3
+tier: mechanical
 description: "Messenger — drafts Teams messages, emails, and announcements. Copy-paste ready output."
 tools:
   - Read

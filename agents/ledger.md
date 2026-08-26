@@ -1,8 +1,8 @@
 ---
 name: ledger
 model: us.anthropic.claude-sonnet-4-6
-fallback_model: session
-tier: 1
+fallback_model: us.anthropic.claude-haiku-4-5-20251001-v1:0
+tier: formula
 description: "Activity Tracker — tracks work in real-time, generates weekly and monthly reports. Always watching, always logging."
 tools:
   - Bash

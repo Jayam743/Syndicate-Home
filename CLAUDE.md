@@ -62,20 +62,21 @@ Agent markdown files live in `agents/`. Each file defines:
 
 ## Model Tiers
 
-Model chosen by **role, not rank** (full table + rationale in `config/models.md`):
+3-band / 4-pin model (full rationale in `config/models.md`):
 
-| Model | Agents | Role type |
-|-------|--------|-----------|
-| opus 4.8 | Odin, Muse, Loki, Specter | orchestrate / conceive / attack / investigate |
-| opus 4.7 | Athena | reason about bugs |
-| opus 4.6 | Forge, Scribe, Titan, Safecracker | code/infra/secrets (blast-radius → keep Opus) |
-| sonnet 4.6 | Gauntlet, Ledger | run tests / format reports (mechanical) |
-| haiku 4.5 | Hermes, Herald, Cipher | git / messages / conversion (pure formula) |
+| Band | Model | Agents |
+|------|-------|--------|
+| think | opus 4.8 (fallback 4.7) | Odin, Muse, Loki, Specter, Forge, Scribe, Titan, Safecracker |
+| think | opus 4.7 (fallback 4.8) | Athena (review-diversity: different model from writer/router) |
+| formula | sonnet 4.6 (fallback haiku) | Gauntlet, Ledger |
+| mechanical | haiku 4.5 (fallback session) | Hermes, Herald, Cipher |
 
 **Fallback rules:**
-- Stays in-family (opus→opus, sonnet→sonnet, haiku→haiku) or drops to `session`
-- Never crosses UP a tier
-- `session` = universal floor; warn on any degradation
+- think: opus-4-8 → opus-4-7 → session+WARN (Athena: 4.7 → 4.8 → session+WARN)
+- formula: sonnet-4-6 → haiku-4-5 → session+COST-WARN
+- mechanical: haiku-4-5 → session+COST-WARN
+- `session` = Opus 4.8 on this account; formula/mechanical reaching session is a
+  cost-increase event — log loudly, never silently
 - Cost: all Opus = same rate; real savings are Opus→Sonnet→Haiku and not
   over-using Opus agents (delegation discipline)
 

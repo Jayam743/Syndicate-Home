@@ -79,40 +79,68 @@ if [ "$ERRORS" -eq 0 ]; then
     echo "  OK: all agents have required frontmatter"
 fi
 
-# --- 3. Model Tier Validation ---
+# --- 3. Pinned-Set and Tier Band Validation ---
 echo ""
-echo "--- Model Tier Rules ---"
+echo "--- Pinned-Set + Tier Band Rules ---"
+
+# The 4 pinned model IDs (Bedrock hard limit)
+PINNED_MODELS=(
+    "us.anthropic.claude-opus-4-8"
+    "us.anthropic.claude-opus-4-7"
+    "us.anthropic.claude-sonnet-4-6"
+    "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+)
+
+# Valid tier bands
+VALID_TIERS=("think" "formula" "mechanical")
+
+is_pinned_model() {
+    local val="$1"
+    for pinned in "${PINNED_MODELS[@]}"; do
+        if [ "$val" = "$pinned" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+is_valid_tier() {
+    local val="$1"
+    for tier in "${VALID_TIERS[@]}"; do
+        if [ "$val" = "$tier" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
 
 for agent in "${REPO_ROOT}/agents/"*.md; do
     name="$(basename "$agent" .md)"
     model=$(grep "^model:" "$agent" | head -1 | sed 's/model: *//')
     fallback=$(grep "^fallback_model:" "$agent" | head -1 | sed 's/fallback_model: *//')
+    tier=$(grep "^tier:" "$agent" | head -1 | sed 's/tier: *//')
 
-    # Universal fallback rule: a fallback must stay in the SAME family
-    # (opus→opus, sonnet→sonnet) OR be "session" (the universal floor for an
-    # agent already at the cheapest model we'd run it on). Never cross UP a tier.
-    if [ "$fallback" = "session" ]; then
-        : # session is always valid — it's the universal floor
-    elif echo "$model" | grep -qi "opus"; then
-        if ! echo "$fallback" | grep -qi "opus"; then
-            echo "  FAIL: ${name} — opus model must fallback to opus or 'session' (got: ${fallback})"
-            ERRORS=$((ERRORS + 1))
-        fi
-    elif echo "$model" | grep -qi "sonnet"; then
-        if ! echo "$fallback" | grep -qi "sonnet"; then
-            echo "  FAIL: ${name} — sonnet model must fallback to sonnet or 'session' (got: ${fallback})"
-            ERRORS=$((ERRORS + 1))
-        fi
-    elif echo "$model" | grep -qi "haiku"; then
-        if ! echo "$fallback" | grep -qi "haiku"; then
-            echo "  FAIL: ${name} — haiku model must fallback to haiku or 'session' (got: ${fallback})"
-            ERRORS=$((ERRORS + 1))
-        fi
+    # model: must be one of the 4 pinned IDs
+    if ! is_pinned_model "$model"; then
+        echo "  FAIL: ${name} — model '${model}' is not in the pinned set"
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # fallback_model: must be one of the 4 pinned IDs OR literal 'session'
+    if [ "$fallback" != "session" ] && ! is_pinned_model "$fallback"; then
+        echo "  FAIL: ${name} — fallback_model '${fallback}' is not in the pinned set and is not 'session'"
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # tier: must be one of {think, formula, mechanical}
+    if ! is_valid_tier "$tier"; then
+        echo "  FAIL: ${name} — tier '${tier}' is not a valid band (must be think|formula|mechanical)"
+        ERRORS=$((ERRORS + 1))
     fi
 done
 
 if [ "$ERRORS" -eq 0 ]; then
-    echo "  OK: all fallbacks valid (same-family or session floor)"
+    echo "  OK: all models in pinned set, all tiers valid bands"
 fi
 
 # --- 3b. Spawn Authority (Axiom 11) ---

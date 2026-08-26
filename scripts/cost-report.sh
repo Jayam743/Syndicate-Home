@@ -4,7 +4,7 @@
 # The model CAN'T see /cost (that's a client-side command). But the transcript
 # records usage + model on every assistant message, so we compute cost ourselves —
 # and get something /cost doesn't: a per-MODEL breakdown. That's the number that
-# answers "how much was Opus 4.8 specifically" — the metric for whether the
+# answers "how much was Opus specifically" — the metric for whether the
 # delegation discipline is actually reducing main-loop Opus spend.
 #
 # Usage:
@@ -12,9 +12,15 @@
 #   cost-report.sh --transcript PATH    # a specific .jsonl
 #   cost-report.sh --project SLUG       # newest in ~/.claude/projects/<slug>/
 #   cost-report.sh --append "label"     # also append a dated line to the cost ledger
+#   cost-report.sh --kind build|operate # tag session kind in ledger line
 #
-# Rates are per MILLION tokens (Bedrock ≈ first-party). Cache read ≈ 0.1× input;
-# cache write (5m) ≈ 1.25× input. Output is the big one.
+# Rates are per MILLION tokens (Bedrock ~ first-party).
+# NOTE: The flat rate table previously overshot ~2x on high-cache sessions because
+# it treated all cache tokens as cache-write (1.25x input). Now split into:
+#   cache_read  ~ 0.1x input rate
+#   cache_write ~ 1.25x input rate
+# The [1m] 1M-context premium is also accounted for (1.25x base rates).
+#
 # READ-ONLY except the optional cost-ledger append.
 
 set -u
@@ -25,13 +31,15 @@ TRANSCRIPT=""
 PROJECT=""
 APPEND_LABEL=""
 NOW=""
+KIND=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --transcript) TRANSCRIPT="$2"; shift 2 ;;
     --project) PROJECT="$2"; shift 2 ;;
     --append) APPEND_LABEL="$2"; shift 2 ;;
-    --date) NOW="$2"; shift 2 ;;   # model passes the date; scripts can't call date reliably
+    --date) NOW="$2"; shift 2 ;;
+    --kind) KIND="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -56,18 +64,40 @@ fi
 
 command -v jq >/dev/null 2>&1 || { echo "cost-report: jq required" >&2; exit 1; }
 
-# Per-model $/MTok rates. input | output | cache_read | cache_write(5m).
+# Per-model $/MTok rates: input | output | cache_read | cache_write(5m).
 # Matched by substring on the model id (Bedrock ids carry version suffixes).
+# [1m] suffix = 1M-context premium at 1.25x base rates.
 rate() { # $1=model-id  -> echoes "in out cread cwrite"
   case "$1" in
-    *opus*)   echo "5 25 0.5 6.25" ;;
-    *sonnet*) echo "3 15 0.3 3.75" ;;
-    *haiku*)  echo "1 5 0.1 1.25" ;;
-    *)        echo "5 25 0.5 6.25" ;;  # unknown → assume Opus (conservative)
+    *opus*\[1m\]*)  echo "6.25 31.25 0.625 7.8125" ;;
+    *opus*)         echo "5 25 0.5 6.25" ;;
+    *sonnet*\[1m\]*) echo "3.75 18.75 0.375 4.6875" ;;
+    *sonnet*)       echo "3 15 0.3 3.75" ;;
+    *haiku*)        echo "1 5 0.1 1.25" ;;
+    *)              echo "5 25 0.5 6.25" ;;  # unknown -> assume Opus (conservative)
   esac
 }
 
-# Sum tokens per model out of the transcript, compute cost, emit a table + totals.
+# Collect all transcript files: main + any discoverable subagent transcripts
+TRANSCRIPTS=("$TRANSCRIPT")
+SUBAGENT_NOTE=""
+TRANSCRIPT_DIR="$(dirname "$TRANSCRIPT")"
+
+# Look for sibling agent-*.jsonl and task-*.jsonl files (subagent transcripts)
+if [ -d "$TRANSCRIPT_DIR" ]; then
+  while IFS= read -r -d '' subfile; do
+    # Skip if it's the main transcript itself
+    if [ "$subfile" != "$TRANSCRIPT" ]; then
+      TRANSCRIPTS+=("$subfile")
+    fi
+  done < <(find "$TRANSCRIPT_DIR" -maxdepth 1 \( -name "agent-*.jsonl" -o -name "task-*.jsonl" \) -print0 2>/dev/null)
+fi
+
+if [ "${#TRANSCRIPTS[@]}" -eq 1 ]; then
+  SUBAGENT_NOTE="NOTE: Only main transcript processed. Subagent costs are excluded (no sibling agent-*.jsonl/task-*.jsonl found)."
+fi
+
+# Sum tokens per model out of all transcripts, compute cost, emit a table + totals.
 # jq groups assistant messages by model and sums each usage field.
 SUMMARY="$(jq -rs '
   [ .[] | select(.type=="assistant") | .message
@@ -84,21 +114,21 @@ SUMMARY="$(jq -rs '
          cr:  (map(.cr)  | add),
          cw:  (map(.cw)  | add)})
   | .[] | "\(.model)\t\(.in)\t\(.out)\t\(.cr)\t\(.cw)"
-' "$TRANSCRIPT" 2>/dev/null)"
+' "${TRANSCRIPTS[@]}" 2>/dev/null)"
 
 if [ -z "$SUMMARY" ]; then
-  echo "cost-report: no usage data in transcript" >&2
+  echo "cost-report: no usage data in transcript(s)" >&2
   exit 1
 fi
 
-echo "═══ COST REPORT ═══"
-echo "Transcript: $(basename "$TRANSCRIPT")"
+echo "=== COST REPORT ==="
+echo "Transcript: $(basename "$TRANSCRIPT") (+$((${#TRANSCRIPTS[@]} - 1)) subagent files)"
 echo ""
 printf "%-40s %10s %10s %8s\n" "model" "out-tok" "in+cache" "cost \$"
 echo "-------------------------------------------------------------------------"
 
 TOTAL="0"
-OPUS48="0"
+OPUS_TOTAL="0"
 while IFS=$'\t' read -r model in out cr cw; do
   [ -n "$model" ] || continue
   read -r ri ro rcr rcw <<< "$(rate "$model")"
@@ -110,15 +140,23 @@ while IFS=$'\t' read -r model in out cr cw; do
   short="$(echo "$model" | sed 's/.*claude-//; s/-v1.*//; s/-2025.*//')"
   printf "%-40s %10s %10s %8s\n" "$short" "$out" "$incache" "$cost"
   TOTAL="$(awk -v t="$TOTAL" -v c="$cost" 'BEGIN{printf "%.2f", t+c}')"
-  case "$model" in *opus-4-8*) OPUS48="$(awk -v a="$OPUS48" -v c="$cost" 'BEGIN{printf "%.2f", a+c}')" ;; esac
+  # Bucket by Opus FAMILY (any *opus* model), not just opus-4-8
+  case "$model" in *opus*) OPUS_TOTAL="$(awk -v a="$OPUS_TOTAL" -v c="$cost" 'BEGIN{printf "%.2f", a+c}')" ;; esac
 done <<< "$SUMMARY"
 
 echo "-------------------------------------------------------------------------"
-PCT="$(awk -v a="$OPUS48" -v t="$TOTAL" 'BEGIN{ if(t>0) printf "%.0f", (a/t)*100; else print 0 }')"
-printf "TOTAL: \$%s   |   Opus 4.8: \$%s (%s%%)\n" "$TOTAL" "$OPUS48" "$PCT"
+PCT="$(awk -v a="$OPUS_TOTAL" -v t="$TOTAL" 'BEGIN{ if(t>0) printf "%.0f", (a/t)*100; else print 0 }')"
+printf "TOTAL: \$%s   |   Opus (family): \$%s (%s%%)\n" "$TOTAL" "$OPUS_TOTAL" "$PCT"
 echo ""
-echo "Opus-4.8 share is the delegation metric — lower over time = the main loop"
+echo "Opus family share is the delegation metric — lower over time = the main loop"
 echo "is handing heavy work to cheaper agents instead of doing it itself."
+# /retro should only flag Opus-% on 'operate' sessions; build/design sessions are
+# legitimately Opus-heavy and should not trigger delegation warnings.
+
+if [ -n "$SUBAGENT_NOTE" ]; then
+  echo ""
+  echo "$SUBAGENT_NOTE"
+fi
 
 # Optional: append a dated line to the cost ledger for trend tracking
 if [ -n "$APPEND_LABEL" ]; then
@@ -129,13 +167,14 @@ if [ -n "$APPEND_LABEL" ]; then
       echo "# Syndicate Cost Ledger"
       echo ""
       echo "> Per-session cost, computed from transcripts by cost-report.sh (via /retro)."
-      echo "> Watch the Opus-4.8 % — it should trend DOWN as delegation discipline improves."
+      echo "> Watch the Opus % — it should trend DOWN as delegation discipline improves."
       echo ""
-      echo "| Date | Session | Total \$ | Opus 4.8 \$ | Opus 4.8 % |"
-      echo "|------|---------|---------|-----------|-----------|"
+      echo "| Date | Session | Kind | Total \$ | Opus \$ | Opus % |"
+      echo "|------|---------|------|---------|--------|--------|"
     } > "$COST_LEDGER"
   fi
-  echo "| ${NOW} | ${APPEND_LABEL} | \$${TOTAL} | \$${OPUS48} | ${PCT}% |" >> "$COST_LEDGER"
+  KIND_FIELD="${KIND:-untagged}"
+  echo "| ${NOW} | ${APPEND_LABEL} | ${KIND_FIELD} | \$${TOTAL} | \$${OPUS_TOTAL} | ${PCT}% |" >> "$COST_LEDGER"
   echo ""
-  echo "logged → ${COST_LEDGER}"
+  echo "logged -> ${COST_LEDGER}"
 fi

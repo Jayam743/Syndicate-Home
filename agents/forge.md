@@ -1,8 +1,8 @@
 ---
 name: forge
-model: us.anthropic.claude-opus-4-6-v1
-fallback_model: session
-tier: 2
+model: us.anthropic.claude-opus-4-8
+fallback_model: us.anthropic.claude-opus-4-7
+tier: think
 description: "The Coder — writes, refactors, and implements code. Pure execution, no review, no testing."
 tools:
   - Bash
