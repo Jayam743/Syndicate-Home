@@ -114,6 +114,36 @@ dropping to Sonnet ($3/$15, -40%) or Haiku ($1/$5, -80%). The biggest lever of a
 is not making Opus agents run when a cheaper agent (or the workflow) should — see
 [[loki-review]] on delegation discipline.
 
+## Workflow agent() model overrides
+
+Workflow stages spawned via `agent()` inherit the **main-loop model (Opus 4.8)** unless
+an explicit `model:` is passed. To stop the mechanical stages from silently running on
+Opus, `workflows/standard-pipeline.js` downshifts exactly three stages via a `BAND`
+const (band-name → pinned id):
+
+| Stage | Band | Pinned id |
+|-------|------|-----------|
+| `gauntlet:test` | sonnet | `us.anthropic.claude-sonnet-4-6` |
+| `hermes:ship` | haiku | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
+| `ledger:record` | sonnet | `us.anthropic.claude-sonnet-4-6` |
+
+Reasoning / blast-radius stages (`scribe:recraft`, `forge:implement`, `athena:review`,
+and the `recall` pre-stage) are intentionally **left on the default (Opus)** — do not
+downshift them. Each downshifted stage also sets `agentType` (persona) and `log()`s its
+intended model so the transcript shows the tier.
+
+**Rules:**
+- Prefer the band name / `agentType` over hardcoded ids (`model: BAND.sonnet`, not a raw
+  string).
+- Every `model:` **string literal** under `workflows/*.js` must be one of the 4 pinned
+  ids — enforced by `scripts/ci/validate.sh` (fails CI otherwise, closing the
+  400-on-unpinned-id door).
+
+**COVERAGE BOUNDARY:** This only covers **workflow-internal mechanical stages**. Ad-hoc
+**main-loop** spawns (e.g. `general-purpose` / `Explore` subagents) still inherit
+Opus 4.8 and are **NOT** fixed here — route those through the #4-family work / Cost
+Directive on delegation discipline. Issue #13 is **not** "the fix for 100%-Opus."
+
 ## Bedrock Model IDs (inference-profile form)
 
 ```

@@ -11,6 +11,16 @@ export const meta = {
   ]
 }
 
+// Cost-tier band → pinned Bedrock id (the 3 spend tiers; see config/models.md).
+// Only the mechanical workflow stages are downshifted off the default (Opus 4.8);
+// reasoning / blast-radius stages inherit the main-loop model. validate.sh enforces
+// that every model: literal here is one of the 4 pinned ids.
+const BAND = {
+  opus: 'us.anthropic.claude-opus-4-8',
+  sonnet: 'us.anthropic.claude-sonnet-4-6',
+  haiku: 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+}
+
 // Standard pipeline: the most common Syndicate flow
 // Scribe → Forge → Gauntlet + Athena (parallel) → Hermes → Ledger
 //
@@ -162,6 +172,7 @@ const validationResults = await parallel([
       log('Gauntlet skipped (no-test flag)')
       return { passed: true, skipped: true, summary: 'Tests skipped by user' }
     }
+    log('gauntlet:test on ' + BAND.sonnet)
     return agent(
       `You are Gauntlet. Run the project's test suite.
 
@@ -180,6 +191,8 @@ const validationResults = await parallel([
       {
         label: 'gauntlet:test',
         phase: 'Validate',
+        agentType: 'gauntlet',
+        model: BAND.sonnet, // cost-tier: mechanical stage → sonnet
         schema: {
           type: 'object',
           properties: {
@@ -275,6 +288,7 @@ if (reviewResult && !reviewResult.clean) {
 
 phase('Ship')
 
+log('hermes:ship on ' + BAND.haiku)
 const hermesResult = await agent(
   `You are Hermes. Commit and push the changes made by Forge — CONTEXT-AWARE.
 
@@ -312,6 +326,8 @@ const hermesResult = await agent(
   {
     label: 'hermes:ship',
     phase: 'Ship',
+    agentType: 'hermes',
+    model: BAND.haiku, // cost-tier: mechanical stage → haiku
     schema: {
       type: 'object',
       properties: {
@@ -347,6 +363,7 @@ log(`Hermes: ${hermesResult.commitMessage} → ${hermesResult.branch}`)
 
 phase('Record')
 
+log('ledger:record on ' + BAND.sonnet)
 const evidence = await agent(
   `You are Ledger. Record this completed pipeline as an evidence packet.
 
@@ -368,6 +385,8 @@ const evidence = await agent(
   {
     label: 'ledger:record',
     phase: 'Record',
+    agentType: 'ledger',
+    model: BAND.sonnet, // cost-tier: mechanical stage → sonnet
     schema: {
       type: 'object',
       properties: {

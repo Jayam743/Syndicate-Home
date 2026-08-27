@@ -206,6 +206,34 @@ if [ "$ERRORS" -eq "$WF_ERRORS_BEFORE" ]; then
     echo "  OK: all workflows declare scribe + recall preconditions"
 fi
 
+# --- 3d. Workflow model: Literals must be pinned ids (issue #13) ---
+# Any `model:` assigned a string literal in workflows/*.js MUST be one of the 4
+# pinned Bedrock ids. This closes the 400-on-unpinned-id door at CI: an unpinned
+# id (e.g. a dropped [1m] variant) would fail the Bedrock call at runtime.
+# Band-name / agentType refs (model: BAND.sonnet) carry no literal and are skipped.
+echo ""
+echo "--- Workflow model: Literals (pinned-id only) ---"
+
+MODEL_ERRORS_BEFORE="$ERRORS"
+if [ -d "${REPO_ROOT}/workflows" ]; then
+    shopt -s nullglob
+    for wf in "${REPO_ROOT}/workflows/"*.js; do
+        wfname="$(basename "$wf")"
+        while IFS= read -r val; do
+            [ -z "$val" ] && continue
+            if ! is_pinned_model "$val"; then
+                echo "  FAIL: ${wfname} — model literal '${val}' is not in the pinned set"
+                ERRORS=$((ERRORS + 1))
+            fi
+        done < <(grep -oE "model:[[:space:]]*['\"][^'\"]+['\"]" "$wf" | sed -E "s/model:[[:space:]]*['\"]//; s/['\"]$//")
+    done
+    shopt -u nullglob
+fi
+
+if [ "$ERRORS" -eq "$MODEL_ERRORS_BEFORE" ]; then
+    echo "  OK: all workflow model: literals are pinned ids"
+fi
+
 # --- 4. Secrets Scan ---
 echo ""
 echo "--- Secrets Scan ---"
