@@ -1,21 +1,42 @@
 #!/usr/bin/env bash
-# Precheck-asking-detector — blocks agents that ASK to run precheck
-# instead of RUNNING it
+# Precheck-asking-detector — blocks agents that ASK to run precheck/commit
+# instead of just RUNNING it.
 #
-# Detects patterns like:
-#   "Shall I run /precheck?"
-#   "Would you like me to run precheck?"
-#   "Should I execute precheck before committing?"
+# STOP hook. Reads the CC payload as JSON on STDIN, pulls the last assistant
+# text block out of .transcript_path, and matches it against "asking" patterns.
+# On a match it emits {"decision":"block","reason":...} and exits 0 (CC block
+# contract). Mandatory gates are not optional — execute them, don't ask.
 #
-# The correct behavior is: JUST RUN IT. Don't ask.
-#
-# Install: add to ~/.claude/settings.json under hooks.Stop
+# Disable: export PRECHECK_ASKING_HOOK_DISABLED=1
+set -uo pipefail
 
-set -euo pipefail
+if [[ "${PRECHECK_ASKING_HOOK_DISABLED:-0}" == "1" ]]; then
+    exit 0
+fi
 
-OUTPUT="${1:-}"
+INPUT=$(cat 2>/dev/null || true)
+TRANSCRIPT_PATH=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
 
-# Patterns that indicate asking permission for something that should just be done
+if [[ -z "$TRANSCRIPT_PATH" || ! -f "$TRANSCRIPT_PATH" ]]; then
+    exit 0
+fi
+
+LAST_ASSISTANT_TEXT=$(
+    tail -n 200 "$TRANSCRIPT_PATH" 2>/dev/null |
+        jq -rs '
+          [.[] | select(.type == "assistant" and (.message.role // "") == "assistant")]
+          | last
+          | (.message.content // [])
+          | map(select(.type == "text") | .text)
+          | join(" ")
+        ' 2>/dev/null || true
+)
+
+if [[ -z "$LAST_ASSISTANT_TEXT" || "$LAST_ASSISTANT_TEXT" == "null" ]]; then
+    exit 0
+fi
+
+# Patterns that indicate asking permission for something that should just be done.
 ASKING_PATTERNS=(
     "[Ss]hall I run.*precheck"
     "[Ww]ould you like me to.*precheck"
@@ -29,12 +50,9 @@ ASKING_PATTERNS=(
 )
 
 for pattern in "${ASKING_PATTERNS[@]}"; do
-    if echo "$OUTPUT" | grep -qE "$pattern"; then
-        echo "[precheck-detector] BLOCKED: Don't ask — ACT."
-        echo "  You asked permission to run a mandatory gate."
-        echo "  Correct behavior: just run /precheck (or /scp)."
-        echo "  Mandatory actions are not optional — execute them."
-        exit 1
+    if printf '%s' "$LAST_ASSISTANT_TEXT" | grep -qE "$pattern"; then
+        printf '{"decision":"block","reason":"Do not ask permission to run a mandatory gate — ACT. The start of /precheck (or /scp) is unilateral; its checklist is the approval gate. Continue this turn by invoking it now."}'
+        exit 0
     fi
 done
 

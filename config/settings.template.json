@@ -42,32 +42,77 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash(git push*)",
-        "hooks": ["~/.syndicate/hooks/pre-push-test-gate.sh"]
-      },
-      {
-        "matcher": "Bash(git add*)",
-        "hooks": ["~/.syndicate/hooks/pre-stage-secrets-gate.sh"]
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.syndicate/hooks/pre-push-test-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.syndicate/hooks/pre-stage-secrets-gate.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash(pytest*|npm test*|go test*|mvn test*|make test*)",
-        "hooks": ["~/.syndicate/hooks/post-tool-test-sentinel.sh"]
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.syndicate/hooks/post-tool-test-sentinel.sh"
+          }
+        ]
       }
     ],
     "Stop": [
-      "~/.syndicate/hooks/godspeed.sh",
-      "~/.syndicate/hooks/precheck-asking-detector.sh"
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.syndicate/hooks/godspeed.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.syndicate/hooks/precheck-asking-detector.sh"
+          }
+        ]
+      }
     ],
     "SessionStart": [
-      "~/.syndicate/hooks/session-start-syndicate.sh"
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.syndicate/hooks/session-start-syndicate.sh"
+          }
+        ]
+      }
     ],
     "PostCompact": [
-      "~/.syndicate/hooks/post-compact-reread.sh"
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.syndicate/hooks/post-compact-reread.sh"
+          }
+        ]
+      }
     ],
     "SessionEnd": [
-      "~/.syndicate/hooks/session-end-ledger.sh"
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.syndicate/hooks/session-end-ledger.sh"
+          }
+        ]
+      }
     ]
   }
 }

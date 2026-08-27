@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
 # Godspeed — decaying autonomy mandate system
 #
-# When the user says "godspeed", a mandate file is created.
-# Agents check this file to determine if they can proceed without confirmation.
-# Confidence decays over turns. Below threshold → checkpoint.
-# "HALT!" revokes immediately.
+# When the user says "godspeed", a mandate file is created. Agents check it to
+# decide whether they can proceed without confirmation. Confidence decays over
+# turns; below threshold → checkpoint. "HALT!" revokes immediately.
 #
-# This is a STOP hook — it fires after agent output and can block.
-#
-# Install: add to ~/.claude/settings.json under hooks.Stop
+# This is a STOP hook. It reads the CC payload as JSON on STDIN, pulls the last
+# assistant message out of .transcript_path (mirrors precheck-asking-detector),
+# and scans that text for the ABSOLUTE_GATES / prod keywords. On a gated axis it
+# emits {"decision":"block","reason":...} and exits 0 (CC block contract).
 #
 # The mandate NEVER overrides:
 # - prod/production mutations
 # - secrets/credentials operations on prod
 # - force-push, reset --hard, or other destructive git ops
 # - Any action matching the ABSOLUTE_GATES below
-
-set -euo pipefail
+set -uo pipefail
 
 MANDATE_FILE="${HOME}/.syndicate/.godspeed"
 STATE_FILE="${HOME}/.syndicate/.godspeed-state"
@@ -38,31 +37,79 @@ ABSOLUTE_GATES=(
     "vault.*prod"
 )
 
-# Get the agent's last output/action (passed via stdin or $1)
-ACTION="${1:-}"
+INPUT=$(cat 2>/dev/null || true)
+TRANSCRIPT_PATH=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
 
-# --- Check for HALT command ---
-if echo "$ACTION" | grep -qi "HALT\|halt!"; then
-    if [ -f "$MANDATE_FILE" ]; then
+# Pull the last assistant text block out of the transcript (mirror of
+# precheck-asking-detector.sh). This is the agent's most recent action/output.
+# Also pull the last USER text block: "HALT!" is a USER utterance, not the
+# assistant's — the absolute-gate scan runs on the assistant text.
+ACTION=""
+USER_MSG=""
+TRANSCRIPT_OK=0
+if [[ -n "$TRANSCRIPT_PATH" && -f "$TRANSCRIPT_PATH" && -r "$TRANSCRIPT_PATH" ]]; then
+    TRANSCRIPT_OK=1
+    ACTION=$(
+        tail -n 200 "$TRANSCRIPT_PATH" 2>/dev/null |
+            jq -rs '
+              [.[] | select(.type == "assistant" and (.message.role // "") == "assistant")]
+              | last
+              | (.message.content // [])
+              | map(select(.type == "text") | .text)
+              | join(" ")
+            ' 2>/dev/null || true
+    )
+    USER_MSG=$(
+        tail -n 200 "$TRANSCRIPT_PATH" 2>/dev/null |
+            jq -rs '
+              [.[] | select(.type == "user" and (.message.role // "") == "user")]
+              | last
+              | (.message.content // [])
+              | if type == "array" then
+                  map(select(.type == "text") | .text) | join(" ")
+                else . end
+            ' 2>/dev/null || true
+    )
+fi
+
+if [[ "$ACTION" == "null" ]]; then
+    ACTION=""
+fi
+if [[ "$USER_MSG" == "null" ]]; then
+    USER_MSG=""
+fi
+
+# --- Check for HALT command (a USER utterance) ---
+# Scan the last user message for HALT and revoke the mandate immediately.
+if printf '%s' "$USER_MSG" | grep -qiF -- "HALT"; then
+    if [[ -f "$MANDATE_FILE" ]]; then
         rm -f "$MANDATE_FILE"
         rm -f "$STATE_FILE"
-        echo "[godspeed] MANDATE REVOKED. All operations now require confirmation."
     fi
     exit 0
 fi
 
 # --- Check absolute gates (these ALWAYS block, godspeed or not) ---
+# Extended-regex match (-E) with end-of-options (--): the -- lets gate values
+# that start with a dash (e.g. "--force") be treated as patterns not grep flags,
+# while -E keeps the .*-style gates (e.g. "terraform apply.*prod") matching as regex.
 for gate in "${ABSOLUTE_GATES[@]}"; do
-    if echo "$ACTION" | grep -qi "$gate"; then
-        echo "[godspeed-STOP] Gated axis detected (prod/deploy/irreversible keyword)."
-        echo "  This action requires explicit user approval."
-        echo "  The Godspeed mandate does not override the ABSOLUTE rule."
-        exit 1
+    if printf '%s' "$ACTION" | grep -qiE -- "$gate"; then
+        jq -nc --arg g "$gate" '{decision:"block",reason:("Gated axis detected (prod/deploy/irreversible keyword: " + $g + "). This action requires explicit user approval — the Godspeed mandate does not override the ABSOLUTE rule.")}'
+        exit 0
     fi
 done
 
+# --- Transcript unavailable while a mandate is active: fail closed ---
+# If we could not read the transcript, the absolute-gate scan above saw nothing.
+# Rather than silently allow an active mandate to proceed, checkpoint.
+if [[ "$TRANSCRIPT_OK" -eq 0 && -f "$MANDATE_FILE" ]]; then
+    jq -nc '{decision:"block",reason:"Godspeed mandate is active but the transcript is unavailable — cannot verify against the ABSOLUTE gates. Checkpointing — confirm to continue, or say HALT! to revoke the mandate."}'
+    exit 0
+fi
+
 # --- If no mandate, standard behavior (don't block) ---
-if [ ! -f "$MANDATE_FILE" ]; then
+if [[ ! -f "$MANDATE_FILE" ]]; then
     exit 0
 fi
 
@@ -71,26 +118,23 @@ TURNS_SINCE=$(cat "$STATE_FILE" 2>/dev/null || echo "0")
 TURNS_SINCE=$((TURNS_SINCE + 1))
 echo "$TURNS_SINCE" > "$STATE_FILE"
 
-# Decay formula: bar = turns / expected_total
-# Expected total defaults to 20 turns for a typical pipeline
+# Decay formula: bar = turns / expected_total (default 20 turns per pipeline).
+# Pure integer arithmetic (no bc dependency): work in percent (x100).
 EXPECTED_TOTAL=20
-BAR=$(echo "scale=2; $TURNS_SINCE / $EXPECTED_TOTAL" | bc 2>/dev/null || echo "0.5")
+BAR_PCT=$(( TURNS_SINCE * 100 / EXPECTED_TOTAL ))
 
-# Confidence: 80% if tests ran recently, 40% otherwise
-if [ -f "${HOME}/.syndicate/.test-sentinel" ]; then
-    CONFIDENCE="0.80"
+# Confidence: 80% if tests ran recently, 40% otherwise.
+if [[ -f "${HOME}/.syndicate/.test-sentinel" ]]; then
+    CONFIDENCE_PCT=80
 else
-    CONFIDENCE="0.40"
+    CONFIDENCE_PCT=40
 fi
 
-# Compare: if bar > confidence, checkpoint
-SHOULD_CHECKPOINT=$(echo "$BAR > $CONFIDENCE" | bc 2>/dev/null || echo "0")
-if [ "$SHOULD_CHECKPOINT" = "1" ]; then
-    echo "[godspeed] Confidence decayed (turn ${TURNS_SINCE}/${EXPECTED_TOTAL})."
-    echo "  Checkpointing — confirm to continue, or say HALT! to stop."
-    # Don't revoke mandate, just checkpoint this turn
-    exit 1
+# Compare: if bar > confidence, checkpoint (don't revoke, just this turn).
+if (( BAR_PCT > CONFIDENCE_PCT )); then
+    jq -nc --arg t "$TURNS_SINCE" --arg e "$EXPECTED_TOTAL" '{decision:"block",reason:("Godspeed confidence decayed (turn " + $t + "/" + $e + "). Checkpointing — confirm to continue, or say HALT! to revoke the mandate.")}'
+    exit 0
 fi
 
-# Mandate active, confidence sufficient — allow
+# Mandate active, confidence sufficient — allow.
 exit 0
