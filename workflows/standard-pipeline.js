@@ -17,20 +17,68 @@ export const meta = {
 // Args expected:
 //   task: string — the user's original request
 //   context: string — relevant file paths, branch, constraints
+//   recallBrief / priorContext: string — prior-context brief (past sessions + merge
+//       history). If absent, the recall pre-stage runs ~/.syndicate/scripts/recall.sh.
 //   skipScribe: boolean — skip prompt crafting for obvious tasks
+//   skipScribeReason: string — REQUIRED when skipScribe is set (deterministic gate)
+//   skipRecall: boolean — skip the recall pre-stage
+//   skipRecallReason: string — REQUIRED when skipRecall is set (deterministic gate)
 //   skipTests: boolean — skip Gauntlet (e.g., docs-only changes)
 
 phase('Craft')
 
+// Deterministic preconditions (issue #4): a skip must carry a reason, and recall
+// must run unless an explicit, reasoned opt-out is supplied.
+if (args.skipScribe && !args.skipScribeReason) {
+  return { status: 'failed', stage: 'Craft', reason: 'skipScribe requires skipScribeReason' }
+}
+if (args.skipRecall && !args.skipRecallReason) {
+  return { status: 'failed', stage: 'Craft', reason: 'skipRecall requires skipRecallReason' }
+}
+
+// STAGE: recall — ground this run in relevant past sessions + merge history.
+let recallBrief = args.recallBrief || args.priorContext || ''
+if (args.skipRecall) {
+  log(`Recall skipped: ${args.skipRecallReason}`)
+} else if (!recallBrief) {
+  const recall = await agent(
+    `You are running the Syndicate recall pre-stage. Shell out to the recall script
+    and return its output verbatim — do NOT investigate or add your own analysis.
+
+    Run: ~/.syndicate/scripts/recall.sh ${JSON.stringify(args.task || '')}
+
+    Return a JSON object with:
+    - brief: string — the script's stdout (the context brief), "" if nothing relevant
+    - matched: boolean — whether any prior session or merge matched`,
+    {
+      label: 'recall:prime',
+      phase: 'Craft',
+      schema: {
+        type: 'object',
+        properties: { brief: { type: 'string' }, matched: { type: 'boolean' } },
+        required: ['brief']
+      }
+    }
+  )
+  if (recall && recall.brief) {
+    recallBrief = recall.brief
+    log(`Recall: prior context loaded${recall.matched ? ' (matches found)' : ''}`)
+  } else {
+    log('Recall: no relevant prior context found')
+  }
+}
+
 let refinedPrompt = args.task
 let additions = 'none'
 
+// STAGE: scribe — recraft the task into a precise prompt for the target agent.
 if (!args.skipScribe) {
   const scribeResult = await agent(
     `You are Scribe. Recraft this task into a precise prompt for Forge (the coder).
 
     Original task: ${args.task}
     Context: ${args.context || 'none provided'}
+    ${recallBrief ? `Prior context (past sessions + merge history):\n${recallBrief}` : ''}
 
     Return a JSON object with:
     - prompt: the refined prompt for Forge
@@ -61,7 +109,7 @@ if (!args.skipScribe) {
     }
   }
 } else {
-  log('Scribe skipped (obvious task)')
+  log(`Scribe skipped: ${args.skipScribeReason}`)
 }
 
 phase('Build')
@@ -70,7 +118,7 @@ const forgeResult = await agent(
   `You are Forge. Implement the following task.
 
   ${refinedPrompt}
-
+  ${recallBrief ? `\n  Prior context (past sessions + merge history):\n  ${recallBrief}\n` : ''}
   Rules:
   - Read existing code before modifying
   - Match patterns in the codebase

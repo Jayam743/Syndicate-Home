@@ -12,23 +12,65 @@ export const meta = {
 // Investigation pipeline: diagnosis flow
 // Specter observes → forms hypotheses → tests → Loki argues → present options
 //
+// SYNDICATE-NO-SCRIBE: investigation recrafts via Specter's own framing; routing-recraft is a main-loop Step 0.5 concern
+//
 // Args expected:
 //   problem: string — what's broken / what the user asked
 //   context: string — relevant system info, logs, paths
+//   recallBrief / priorContext: string — prior-context brief (past investigations +
+//       merge history). If absent, the recall pre-stage runs ~/.syndicate/scripts/recall.sh.
+//   skipRecall: boolean — skip the recall pre-stage
+//   skipRecallReason: string — REQUIRED when skipRecall is set (deterministic gate)
 //   autoFix: boolean — if true, auto-pick recommended option and fix (godspeed mode)
 
 phase('Investigate')
+
+// Deterministic precondition (issue #4): recall runs unless a reasoned opt-out is given.
+if (args.skipRecall && !args.skipRecallReason) {
+  return { status: 'failed', stage: 'Investigate', reason: 'skipRecall requires skipRecallReason' }
+}
+
+// STAGE: recall — check what we already know before diagnosing from zero. This
+// REPLACES Specter's old in-prompt "check memory first" step, so recall runs once.
+let recallBrief = args.recallBrief || args.priorContext || ''
+if (args.skipRecall) {
+  log(`Recall skipped: ${args.skipRecallReason}`)
+} else if (!recallBrief) {
+  const recall = await agent(
+    `You are running the Syndicate recall pre-stage. Shell out to the recall script
+    and return its output verbatim — do NOT investigate or add your own analysis.
+
+    Run: ~/.syndicate/scripts/recall.sh ${JSON.stringify(args.problem || '')}
+
+    Return a JSON object with:
+    - brief: string — the script's stdout (the context brief), "" if nothing relevant
+    - matched: boolean — whether any prior session or merge matched`,
+    {
+      label: 'recall:prime',
+      phase: 'Investigate',
+      schema: {
+        type: 'object',
+        properties: { brief: { type: 'string' }, matched: { type: 'boolean' } },
+        required: ['brief']
+      }
+    }
+  )
+  if (recall && recall.brief) {
+    recallBrief = recall.brief
+    log(`Recall: prior context loaded${recall.matched ? ' (matches found)' : ''}`)
+  } else {
+    log('Recall: no relevant prior context found')
+  }
+}
 
 const investigation = await agent(
   `You are Specter, the investigator. Something is broken and you need to find out why.
 
   PROBLEM: ${args.problem}
   CONTEXT: ${args.context || 'none provided'}
+  ${recallBrief ? `PRIOR CONTEXT (past investigations + merge history — already recalled for you):\n${recallBrief}\n  If a prior investigation matches, START from its fix and verify it applies here instead of re-diagnosing from zero. Report the match in priorMatch.` : ''}
 
   Follow your investigation protocol:
-  0. CHECK MEMORY FIRST — run: ~/.syndicate/scripts/investigation-memory.sh query "<symptom words>"
-     If a prior investigation matches, START from its fix and verify it applies here
-     instead of re-diagnosing from zero. Report the match in priorMatch.
   1. OBSERVE — gather symptoms, check logs, config, recent changes (READ-ONLY)
   2. HYPOTHESIZE — form 2-4 theories, rank by likelihood
   3. TEST — minimal test for each hypothesis, eliminate dead ends fast

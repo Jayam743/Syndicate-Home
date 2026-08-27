@@ -24,6 +24,12 @@ export const meta = {
 //   acceptanceCriteria: string — the requirements this change must satisfy (issue
 //       acceptance criteria, devspec section, or the task statement). If omitted,
 //       the omission track derives criteria from context + the change itself.
+//   recallBrief / priorContext: string — prior-context brief (past sessions + merge
+//       history). If absent, the recall pre-stage runs ~/.syndicate/scripts/recall.sh.
+//   skipScribe: boolean — skip the Scope checklist-crafting stage (Scribe-like)
+//   skipScribeReason: string — REQUIRED when skipScribe is set (deterministic gate)
+//   skipRecall: boolean — skip the recall pre-stage
+//   skipRecallReason: string — REQUIRED when skipRecall is set (deterministic gate)
 
 const DIMENSIONS = [
   { key: 'correctness', prompt: 'Does the code do what it claims? Check logic, off-by-ones, wrong operators, inverted conditions.' },
@@ -38,11 +44,59 @@ const acceptanceCriteria = args.acceptanceCriteria || ''
 // ── Phase: Scope — derive the atomic checklist (the "what SHOULD be here") ──
 phase('Scope')
 
-const checklist = await agent(
+// Deterministic preconditions (issue #4): a skip must carry a reason, and recall
+// must run unless an explicit, reasoned opt-out is supplied.
+if (args.skipScribe && !args.skipScribeReason) {
+  return { status: 'failed', stage: 'Scope', reason: 'skipScribe requires skipScribeReason' }
+}
+if (args.skipRecall && !args.skipRecallReason) {
+  return { status: 'failed', stage: 'Scope', reason: 'skipRecall requires skipRecallReason' }
+}
+
+// STAGE: recall — ground the review in relevant past sessions + merge history.
+let recallBrief = args.recallBrief || args.priorContext || ''
+if (args.skipRecall) {
+  log(`Recall skipped: ${args.skipRecallReason}`)
+} else if (!recallBrief) {
+  const recall = await agent(
+    `You are running the Syndicate recall pre-stage. Shell out to the recall script
+    and return its output verbatim — do NOT investigate or add your own analysis.
+
+    Run: ~/.syndicate/scripts/recall.sh ${JSON.stringify(args.context || reviewTarget || '')}
+
+    Return a JSON object with:
+    - brief: string — the script's stdout (the context brief), "" if nothing relevant
+    - matched: boolean — whether any prior session or merge matched`,
+    {
+      label: 'recall:prime',
+      phase: 'Scope',
+      schema: {
+        type: 'object',
+        properties: { brief: { type: 'string' }, matched: { type: 'boolean' } },
+        required: ['brief']
+      }
+    }
+  )
+  if (recall && recall.brief) {
+    recallBrief = recall.brief
+    log(`Recall: prior context loaded${recall.matched ? ' (matches found)' : ''}`)
+  } else {
+    log('Recall: no relevant prior context found')
+  }
+}
+
+// STAGE: scribe — the Scope stage recrafts the acceptance criteria into an atomic,
+// closed checklist (the review-pipeline's Scribe-role: shape the intent before work).
+let checklist = null
+if (args.skipScribe) {
+  log(`Scribe (Scope) skipped: ${args.skipScribeReason}`)
+} else {
+  checklist = await agent(
   `You are Athena, building a verification checklist for a code review.
 
   TARGET UNDER REVIEW: ${reviewTarget}
   CONTEXT: ${args.context || 'code review requested'}
+  ${recallBrief ? `PRIOR CONTEXT (past sessions + merge history):\n${recallBrief}` : ''}
   ${acceptanceCriteria
     ? `ACCEPTANCE CRITERIA (the source of truth for what this change must do):\n${acceptanceCriteria}`
     : 'NO explicit acceptance criteria were given. Derive the intended requirements from the context and the change itself — what SHOULD a correct version of this include?'}
@@ -77,7 +131,8 @@ const checklist = await agent(
       required: ['items']
     }
   }
-)
+  )
+}
 
 const checklistItems = checklist ? (checklist.items || []) : []
 log(`Scope: ${checklistItems.length} atomic requirement(s) to verify (${checklist ? checklist.derivedFrom : 'n/a'})`)

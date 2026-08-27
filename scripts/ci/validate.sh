@@ -162,6 +162,50 @@ if [ "$ERRORS" -eq 0 ]; then
     echo "  OK: only Odin holds spawn authority"
 fi
 
+# --- 3c. Workflow Recall/Scribe Preconditions (issue #4) ---
+# Deterministic preconditions for the heavy workflows. Anchor on the STAGE/NO-*
+# COMMENTS, never on label strings — a label like 'scribe:recraft' is not a
+# declaration that the stage's precondition was consciously handled.
+echo ""
+echo "--- Workflow Recall/Scribe Preconditions ---"
+
+WF_ERRORS_BEFORE="$ERRORS"
+if [ -d "${REPO_ROOT}/workflows" ]; then
+    shopt -s nullglob
+    for wf in "${REPO_ROOT}/workflows/"*.js; do
+        wfname="$(basename "$wf")"
+
+        # Scribe: an explicit '// STAGE: scribe' anchor OR a reasoned opt-out marker.
+        if ! grep -Eq '^[[:space:]]*//[[:space:]]*STAGE:[[:space:]]*scribe([[:space:]]|$)' "$wf" \
+           && ! grep -Eq '//[[:space:]]*SYNDICATE-NO-SCRIBE:[[:space:]]*\S' "$wf"; then
+            echo "  FAIL: ${wfname} — no '// STAGE: scribe' anchor and no '// SYNDICATE-NO-SCRIBE: <reason>' opt-out"
+            ERRORS=$((ERRORS + 1))
+        fi
+
+        # Recall: an explicit '// STAGE: recall' anchor OR a reasoned opt-out marker.
+        if ! grep -Eq '^[[:space:]]*//[[:space:]]*STAGE:[[:space:]]*recall([[:space:]]|$)' "$wf" \
+           && ! grep -Eq '//[[:space:]]*SYNDICATE-NO-RECALL:[[:space:]]*\S' "$wf"; then
+            echo "  FAIL: ${wfname} — no '// STAGE: recall' anchor and no '// SYNDICATE-NO-RECALL: <reason>' opt-out"
+            ERRORS=$((ERRORS + 1))
+        fi
+
+        # Skip flags must be paired with their reason arg (deterministic gate).
+        if grep -q 'skipScribe' "$wf" && ! grep -q 'skipScribeReason' "$wf"; then
+            echo "  FAIL: ${wfname} — references skipScribe but never skipScribeReason"
+            ERRORS=$((ERRORS + 1))
+        fi
+        if grep -q 'skipRecall' "$wf" && ! grep -q 'skipRecallReason' "$wf"; then
+            echo "  FAIL: ${wfname} — references skipRecall but never skipRecallReason"
+            ERRORS=$((ERRORS + 1))
+        fi
+    done
+    shopt -u nullglob
+fi
+
+if [ "$ERRORS" -eq "$WF_ERRORS_BEFORE" ]; then
+    echo "  OK: all workflows declare scribe + recall preconditions"
+fi
+
 # --- 4. Secrets Scan ---
 echo ""
 echo "--- Secrets Scan ---"

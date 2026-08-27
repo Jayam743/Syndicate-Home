@@ -12,6 +12,8 @@ export const meta = {
 
 // Campaign workflow: wave-pattern execution for multi-issue work
 //
+// SYNDICATE-NO-SCRIBE: campaign has no literal Scribe stage — decomposition is Odin's job and routing-recraft is a main-loop Step 0.5 concern
+//
 // Args expected:
 //   issues: array of {id, title, description, dependencies} — the work items
 //   repo: string — target repository path
@@ -23,6 +25,8 @@ export const meta = {
 //   priorContext: string — recall brief (relevant past sessions + merge history).
 //           Odin fills this from ~/.syndicate/scripts/recall.sh so oversight judges against
 //           history, not just this run. This is what BJ's stateless design can't do.
+//   skipRecall: boolean — proceed without a recall brief (oversight judges this run only)
+//   skipRecallReason: string — REQUIRED when skipRecall is set (deterministic gate)
 //   overseeConfidenceFloor: number 0-100 — HOLD if oversight confidence drops
 //           below this (default 50).
 //
@@ -41,8 +45,25 @@ phase('Decompose')
 const issues = args.issues || []
 const maxWaves = args.maxWaves || 5
 const campaignIntent = args.intent || '(intent not stated — infer from the issue set)'
-const priorContext = args.priorContext || '(no prior context supplied)'
 const confidenceFloor = args.overseeConfidenceFloor || 50
+
+// Deterministic precondition (issue #4): if recall is skipped it must carry a reason.
+if (args.skipRecall && !args.skipRecallReason) {
+  return { status: 'failed', stage: 'Decompose', reason: 'skipRecall requires skipRecallReason' }
+}
+
+// STAGE: recall — the recall brief (past sessions + merge history) is supplied by the
+// main loop via args.priorContext and consumed by the oversight seam below. If it is
+// absent, the campaign proceeds only when an explicit, reasoned opt-out is given.
+let priorContext = args.priorContext || ''
+if (!priorContext) {
+  if (args.skipRecall) {
+    log(`Recall skipped: ${args.skipRecallReason}`)
+  } else {
+    log('Recall: no prior context supplied — oversight judges this run only')
+  }
+  priorContext = '(no prior context supplied)'
+}
 
 if (issues.length === 0) {
   log('No issues provided — campaign cannot start')

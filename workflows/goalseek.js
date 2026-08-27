@@ -20,9 +20,15 @@ export const meta = {
 // forced into a wave decomposition — it should be probed iteratively until a
 // judge says "sufficient", at which point it may HAND OFF to plan-execution.
 //
+// SYNDICATE-NO-SCRIBE: goal-seeking frames each probe via its own steering; routing-recraft is a main-loop Step 0.5 concern
+//
 // Args expected:
 //   goal: string — what "done" looks like (the target, not the steps)
 //   context: string — starting knowledge, constraints, where to look
+//   recallBrief / priorContext: string — prior-context brief (past sessions + merge
+//       history). If absent, the recall pre-stage runs ~/.syndicate/scripts/recall.sh.
+//   skipRecall: boolean — skip the recall pre-stage
+//   skipRecallReason: string — REQUIRED when skipRecall is set (deterministic gate)
 //   maxRounds: number — hard cap on probe rounds (default 6)
 //   agentType: string — which specialist probes ("specter" for investigation,
 //              "forge" for build-toward-working, "Explore" for read-only research/
@@ -43,10 +49,48 @@ if (!goal) {
 
 phase('Seek')
 
+// Deterministic precondition (issue #4): recall runs unless a reasoned opt-out is given.
+if (args.skipRecall && !args.skipRecallReason) {
+  return { status: 'failed', stage: 'Seek', reason: 'skipRecall requires skipRecallReason' }
+}
+
+// STAGE: recall — ground the first probe in relevant past sessions + merge history.
+let recallBrief = args.recallBrief || args.priorContext || ''
+if (args.skipRecall) {
+  log(`Recall skipped: ${args.skipRecallReason}`)
+} else if (!recallBrief) {
+  const recall = await agent(
+    `You are running the Syndicate recall pre-stage. Shell out to the recall script
+    and return its output verbatim — do NOT investigate or add your own analysis.
+
+    Run: ~/.syndicate/scripts/recall.sh ${JSON.stringify(goal || '')}
+
+    Return a JSON object with:
+    - brief: string — the script's stdout (the context brief), "" if nothing relevant
+    - matched: boolean — whether any prior session or merge matched`,
+    {
+      label: 'recall:prime',
+      phase: 'Seek',
+      schema: {
+        type: 'object',
+        properties: { brief: { type: 'string' }, matched: { type: 'boolean' } },
+        required: ['brief']
+      }
+    }
+  )
+  if (recall && recall.brief) {
+    recallBrief = recall.brief
+    log(`Recall: prior context loaded${recall.matched ? ' (matches found)' : ''}`)
+  } else {
+    log('Recall: no relevant prior context found')
+  }
+}
+
 const journal = []       // append-only record of every round
 let sufficient = false
 let round = 0
-let steer = args.context || 'Start from scratch.'
+let steer = [args.context, recallBrief ? `Prior context (past sessions + merge history):\n${recallBrief}` : '']
+  .filter(Boolean).join('\n\n') || 'Start from scratch.'
 let lastConfidence = 0
 let stalledRounds = 0    // rounds with no meaningful progress (escalation cord)
 
