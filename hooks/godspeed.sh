@@ -7,8 +7,9 @@
 #
 # This is a STOP hook. It reads the CC payload as JSON on STDIN, pulls the last
 # assistant message out of .transcript_path (mirrors precheck-asking-detector),
-# and scans that text for the ABSOLUTE_GATES / prod keywords. On a gated axis it
-# emits {"decision":"block","reason":...} and exits 0 (CC block contract).
+# and scans the tool_use COMMANDS (not prose) of that message for the
+# ABSOLUTE_GATES / prod keywords. On a gated axis it emits
+# {"decision":"block","reason":...} and exits 0 (CC block contract).
 #
 # The mandate NEVER overrides:
 # - prod/production mutations
@@ -40,27 +41,35 @@ ABSOLUTE_GATES=(
 INPUT=$(cat 2>/dev/null || true)
 TRANSCRIPT_PATH=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
 
-# Pull the last assistant text block out of the transcript (mirror of
-# precheck-asking-detector.sh). This is the agent's most recent action/output.
-# Also pull the last USER text block: "HALT!" is a USER utterance, not the
-# assistant's — the absolute-gate scan runs on the assistant text.
+# Pull the last assistant message's tool_use commands out of the transcript.
+# This is the agent's most recent real action(s) — not its prose. Also pull the
+# last USER text block: "HALT!" is a USER utterance, not the assistant's — the
+# absolute-gate scan runs on the assistant's tool_use commands.
 ACTION=""
 USER_MSG=""
 TRANSCRIPT_OK=0
 if [[ -n "$TRANSCRIPT_PATH" && -f "$TRANSCRIPT_PATH" && -r "$TRANSCRIPT_PATH" ]]; then
     TRANSCRIPT_OK=1
+    # Extract the tool_use COMMANDS from the LAST assistant message (not prose).
+    # Dispatch/planning/informational tools are blacklisted so their inputs (which
+    # can quote prod keywords in prose, e.g. an Agent prompt) never trip the gates.
+    # In-scope by default: Bash/Edit/Write/MultiEdit/NotebookEdit/mcp__* (blacklist).
+    # FAIL-CLOSED: if jq errors, TRANSCRIPT_OK=0 so the checkpoint branch fires.
     ACTION=$(
-        tail -n 200 "$TRANSCRIPT_PATH" 2>/dev/null |
+        tail -n 500 "$TRANSCRIPT_PATH" 2>/dev/null |
             jq -rs '
               [.[] | select(.type == "assistant" and (.message.role // "") == "assistant")]
               | last
               | (.message.content // [])
-              | map(select(.type == "text") | .text)
-              | join(" ")
-            ' 2>/dev/null || true
-    )
+              | [ .[]
+                  | select(.type == "tool_use")
+                  | select((.name // "") as $n | ["Agent","TodoWrite","Read","Grep","Glob","AskUserQuestion","ToolSearch","WebFetch","NotebookRead","Skill"] | index($n) | not)
+                  | ((.input // {}) | tojson) ]
+              | join("\n---\n")
+            ' 2>/dev/null
+    ) || TRANSCRIPT_OK=0
     USER_MSG=$(
-        tail -n 200 "$TRANSCRIPT_PATH" 2>/dev/null |
+        tail -n 500 "$TRANSCRIPT_PATH" 2>/dev/null |
             jq -rs '
               [.[] | select(.type == "user" and (.message.role // "") == "user")]
               | last
