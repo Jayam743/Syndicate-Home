@@ -76,6 +76,23 @@ while IFS= read -r -d '' agent; do
     fi
 done < <(find "${REPO_ROOT}/agents" -name "*.md" -print0)
 
+# --- Commit-msg gate symlink (WARN only — never fails the check) ---
+echo ""
+echo "--- Checking commit-msg gate symlink ---"
+GIT_HOOK="${REPO_ROOT}/.git/hooks/commit-msg"
+GIT_HOOK_SRC="${REPO_ROOT}/hooks/git/commit-msg"
+if [ -L "$GIT_HOOK" ]; then
+    if [ "$(readlink -f "$GIT_HOOK" 2>/dev/null)" = "$(readlink -f "$GIT_HOOK_SRC" 2>/dev/null)" ]; then
+        echo "  OK: commit-msg gate installed → tracked source"
+    else
+        echo "  WARN: commit-msg gate symlink points elsewhere — run ./install.sh to reconcile"
+    fi
+elif [ -e "$GIT_HOOK" ]; then
+    echo "  WARN: .git/hooks/commit-msg exists but is not the Syndicate symlink"
+else
+    echo "  WARN: commit-msg gate not installed — run ./install.sh to activate the Decision-Review gate"
+fi
+
 # Summary
 echo ""
 echo "=========================="

@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Syndicate commit-msg gate — Decision-Review trailer enforcement (git-native).
+#
+# Installed by install.sh as <repo>/.git/hooks/commit-msg in Syndicate-managed
+# repos. git invokes it with the path to the commit message file as $1 and ABORTS
+# the commit if this hook exits non-zero — that abort is the contract we rely on.
+#
+# It fails OPEN (never blocks) unless it can positively confirm three things:
+#   1. it is running inside a Syndicate-managed repo,
+#   2. the staged change touches wiring (per the shared trigger predicate), and
+#   3. the message lacks a valid Decision-Review trailer / waiver.
+#
+# Self-brick escape: SYNDICATE_DECISION_GATE_DISABLED=1 -> exit 0.
+set -uo pipefail
+
+# --- 0. Kill-switch (very top, before anything else) -----------------------
+if [[ "${SYNDICATE_DECISION_GATE_DISABLED:-0}" == "1" ]]; then
+    exit 0
+fi
+
+MSG_FILE="${1:-}"
+if [[ -z "$MSG_FILE" || ! -f "$MSG_FILE" ]]; then
+    exit 0
+fi
+
+# --- 1. Scope to Syndicate-managed repos -----------------------------------
+# Only enforce where a Syndicate marker exists at the repo root, so the hook is
+# inert if it ever lands in an unrelated layered repo.
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "$REPO_ROOT" ]]; then
+    exit 0
+fi
+# Marker: `.syndicate-managed` OR a Syndicate-specific fingerprint
+# (config/doctrine.md AND agents/odin.md) — a lone config/doctrine.md in an
+# unrelated repo must NOT activate the gate.
+if [[ ! -f "${REPO_ROOT}/.syndicate-managed" \
+   && ! ( -f "${REPO_ROOT}/config/doctrine.md" && -f "${REPO_ROOT}/agents/odin.md" ) ]]; then
+    exit 0
+fi
+
+# --- 2. fixup / squash exclusions ------------------------------------------
+FIRST_LINE="$(head -1 "$MSG_FILE" 2>/dev/null || true)"
+if [[ "$FIRST_LINE" == "fixup! "* || "$FIRST_LINE" == "squash! "* ]]; then
+    exit 0
+fi
+
+MSG_BODY="$(cat "$MSG_FILE" 2>/dev/null || true)"
+
+# `Fixup-Of: <sha>` where the referenced commit already carried a Decision-Review.
+FIXUP_SHA="$(printf '%s\n' "$MSG_BODY" \
+    | grep -oE '^Fixup-Of:[[:space:]]*[0-9a-fA-F]+' | head -1 \
+    | grep -oE '[0-9a-fA-F]+$' || true)"
+if [[ -n "$FIXUP_SHA" ]]; then
+    if git log -1 --format=%B "$FIXUP_SHA" 2>/dev/null | grep -q '^Decision-Review:'; then
+        exit 0
+    fi
+fi
+
+# --- 3. Is a Decision-Review trailer required for this change? --------------
+TRIGGER_SCRIPT="${REPO_ROOT}/scripts/ci/decision-review-trigger.sh"
+if [[ ! -x "$TRIGGER_SCRIPT" ]]; then
+    # Predicate unavailable — fail open. precheck + CI still mirror the check.
+    exit 0
+fi
+if git diff --cached --name-only 2>/dev/null | bash "$TRIGGER_SCRIPT" >/dev/null 2>&1; then
+    : # trailer REQUIRED
+else
+    exit 0 # NOT required
+fi
+
+# --- 4. Trailer check ------------------------------------------------------
+TRAILER_RE='^Decision-Review: (loki=.+ athena=.+|waived=((test-only-fix|fix-of-reviewed|no-new-decision|self-repair)[[:space:]]*$|freeform:.+))'
+if printf '%s\n' "$MSG_BODY" | grep -qE "$TRAILER_RE"; then
+    exit 0
+fi
+
+# Missing / invalid trailer — abort the commit with guidance.
+cat >&2 <<'EOF'
+✗ Syndicate Decision-Review gate
+
+This commit changes WIRING (config / hooks / agents / scripts/ci / settings /
+CLAUDE.md) and must record a decision disposition before it lands.
+
+Add ONE trailer line to the commit message:
+
+  Decision-Review: loki=<disposition> athena=<disposition>
+      e.g.  Decision-Review: loki=agree athena=approve
+
+Or waive it with a category (human judgement — recorded for audit):
+
+  Decision-Review: waived=test-only-fix     # touches only test scaffolding
+  Decision-Review: waived=fix-of-reviewed   # fix of an already-reviewed change
+  Decision-Review: waived=no-new-decision   # mechanical, no new decision made
+  Decision-Review: waived=self-repair       # fixing this gate / its own wiring
+  Decision-Review: waived=freeform:<reason> # anything else (Godspeed HALTs here)
+
+Emergency bypass: SYNDICATE_DECISION_GATE_DISABLED=1 git commit ...
+EOF
+exit 1

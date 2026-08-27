@@ -35,6 +35,28 @@ Mandatory gate before any commit. This is NOT optional. Agents RUN it, don't ask
    - Types: feat, fix, docs, style, refactor, test, chore
    - Description is present and meaningful (not "fix" or "update")
 
+4.5. **Decision-Review reminder (report-only mirror)**
+   - Call the shared predicate — do NOT re-implement it (single source of truth,
+     also used by the commit-msg gate):
+
+     ```
+     git diff --cached --name-only | bash scripts/ci/decision-review-trigger.sh
+     ```
+
+   - Exit 0 / `REQUIRED` → this change touches the wiring surface. Remind the user
+     the commit will need a `Decision-Review:` trailer (a `loki=… athena=…`
+     disposition, or a `waived=<category>`). This is a reminder here — the
+     commit-msg hook is what actually enforces it.
+   - Exit 1 / `NOT_REQUIRED` → no reminder needed.
+   - Also PRINT the branch's running waiver count for visibility (audit trail):
+
+     ```
+     git log --format=%B origin/main..HEAD 2>/dev/null | grep -c 'waived=' || true
+     ```
+
+     Report it as `Waivers on branch: N`. A climbing count is a signal (the seam
+     is being routinely skipped), not a failure.
+
 5. **Report**
 
 ```
@@ -43,6 +65,7 @@ Branch: ✓ fix/123-login-timeout (valid)
 Staged: ✓ 3 files, no secrets, no oversized
 Review: ✓ clean (no debug/todo/commented code)
 Message: ✓ fix(auth): handle session timeout gracefully
+Decision: ○ not required (no wiring change) · Waivers on branch: 0
 
 PASSED — safe to commit.
 ```

@@ -197,8 +197,49 @@ question). Stating them converts a silent skip into a declaration you can catch:
 → Scribe: [used | skipped — why]          ← Step 0.5 decision, ALWAYS stated
 → Execution: [workflow <name> | manual — and if manual, WHERE the Loki/adversarial
               seam happens]                 ← Step 2 decision, ALWAYS stated
+→ Decision-review: [none | Loki→Athena→future-harm (triggered by <category>)
+                    | waived=<category>]    ← the decision-trigger decision, ALWAYS stated
 Proceed? (or say 'godspeed' to auto-run)
 ```
+
+### The decision-trigger list (what makes the seam MANDATORY)
+
+Most turns don't need the adversarial seam. It becomes REQUIRED — Loki → agree →
+Athena → future-harm, run BEFORE the change commits — when the turn makes a
+**functional / wiring decision**. A decision is triggering if it:
+
+- picks or changes a **model / cost / tier** assignment,
+- edits **hooks / agents / skills / settings / config / doctrine / toolkit** (the
+  wiring surface — skills define agent/workflow behavior; note `config/*.md` IS
+  wiring, docs are not),
+- makes an **architecture** choice (a new seam, control-flow, or contract), or
+- **adds or changes a required daily-workflow step** (something every future turn
+  now has to do).
+
+**Trigger test:** does this alter FUTURE / system behavior, or only THIS turn's
+output? Future/system behavior → triggered. **Non-triggers** (seam optional):
+a one-off output, code already covered by Athena + tests, or a reversible scoped
+edit. When triggered, set the plan line's `Decision-review:` field accordingly and
+carry the disposition through to the commit trailer (`Decision-Review:` — enforced
+by the commit-msg gate on the wiring surface).
+
+This scopes the old standing rule `feedback-loki-challenge-every-decision`: it is
+no longer "challenge EVERY decision" (which over-fired on one-off output) but
+"challenge every decision on the trigger list above". That is the supersession —
+the trigger list is the definition of "a decision worth the seam".
+
+### Loki-first choice-ordering (TRIGGERED forks only)
+
+When a triggered decision has a real fork, present options in a fixed order so the
+adversary's pick is never buried:
+
+1. **Loki's pick** (the option the adversarial voice argues for),
+2. the **main-loop's pick** if different,
+3. then any other options.
+
+The chosen option is then re-run through Loki + Athena before it commits. This
+ordering applies ONLY to triggered forks — exploratory or non-triggered choices
+stay open-ended (don't force-rank a brainstorm).
 
 Rules that make this bite:
 - For **investigate / code-change / review / campaign**: name the workflow, OR if
@@ -254,6 +295,18 @@ Only stop mid-flow for:
 1. Irreversible op needs approval (prod/destroy — Axiom 3)
 2. Hard fault (tool down, API error)
 3. User says "HALT!"
+4. **A review-required commit with no pre-existing human waiver.** Under Godspeed,
+   reaching a commit that touches the wiring surface (per the decision-trigger list)
+   without an already-recorded `Decision-Review:` disposition or waiver = HALT and
+   surface it to the human. Godspeed cannot self-issue the waiver — that's the point.
+   - `waived=freeform:<reason>` also HALTs (freeform means "no structured category
+     fit" — a human should see it). The structured categories
+     (`test-only-fix`, `fix-of-reviewed`, `no-new-decision`, `self-repair`) do NOT
+     HALT — they're pre-authorized dispositions.
+   - Human-only-waiver is a doctrine + audit expectation, not a hard technical block:
+     git cannot distinguish who authored a trailer, so the enforcement is the gate
+     (trailer must be present) plus the audit trail (waiver counts surfaced by
+     precheck), not machine-verified authorship.
 
 Everything else → log a concern, continue. "I'm not sure" is not a stop condition.
 
@@ -272,3 +325,7 @@ Everything else → log a concern, continue. "I'm not sure" is not a stop condit
 5. Am I the only one spawning? → yes (Axiom 11), unless I AM Odin/the session
 6. Did I show the plan before acting? → yes, unless Godspeed
 7. Will this get recorded? → yes, evidence packet + Ledger
+8. **Was this a functional/wiring decision?** → if so, it must carry a recorded
+   Loki→Athena disposition (or a waiver) before commit. The commit-msg gate
+   enforces the trailer on the wiring surface; the plan line's `Decision-review:`
+   field is where you declared it.

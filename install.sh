@@ -126,6 +126,34 @@ for hook in "${SCRIPT_DIR}/hooks/"*.sh; do
 done
 echo "  ✓ Hooks linked to ~/.syndicate/hooks/"
 
+# --- 3b. Git-native commit-msg gate (Decision-Review) ---
+# Unlike CC hooks (referenced from ~/.syndicate/hooks via settings.json), a git
+# hook MUST live at <repo>/.git/hooks/commit-msg — git invokes it there. We symlink
+# it into the Syndicate repo itself (the managed repo). The hook is self-scoping
+# (no-ops unless a Syndicate marker is present) and carries its own kill-switch
+# (SYNDICATE_DECISION_GATE_DISABLED=1), so this is safe to install everywhere it
+# applies. Idempotent; a pre-existing real hook is backed up, never clobbered.
+GIT_HOOK_SRC="${SCRIPT_DIR}/hooks/git/commit-msg"
+GIT_HOOKS_DIR="${SCRIPT_DIR}/.git/hooks"
+if [ -f "$GIT_HOOK_SRC" ] && [ -d "$GIT_HOOKS_DIR" ]; then
+    chmod +x "$GIT_HOOK_SRC" 2>/dev/null || true
+    GIT_HOOK_TARGET="${GIT_HOOKS_DIR}/commit-msg"
+    if [ -L "$GIT_HOOK_TARGET" ]; then
+        rm "$GIT_HOOK_TARGET"
+        ln -s "$GIT_HOOK_SRC" "$GIT_HOOK_TARGET"
+        echo "  ✓ commit-msg gate linked → .git/hooks/commit-msg (updated)"
+    elif [ -f "$GIT_HOOK_TARGET" ]; then
+        mv "$GIT_HOOK_TARGET" "${GIT_HOOK_TARGET}.pre-syndicate.bak"
+        ln -s "$GIT_HOOK_SRC" "$GIT_HOOK_TARGET"
+        echo "  ✓ commit-msg gate linked (backed up existing → commit-msg.pre-syndicate.bak)"
+    else
+        ln -s "$GIT_HOOK_SRC" "$GIT_HOOK_TARGET"
+        echo "  ✓ commit-msg gate linked → .git/hooks/commit-msg (new)"
+    fi
+else
+    echo "  ○ commit-msg gate skipped (no .git/hooks/ or source missing)"
+fi
+
 SETTINGS_FILE="${CLAUDE_DIR}/settings.json"
 SS_HOOK="${SYNDICATE_HOOKS}/session-start-syndicate.sh"
 
