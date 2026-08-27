@@ -43,10 +43,10 @@ Workflow({
   name: 'syndicate-campaign',
   args: {
     issues: [
-      { id: "123", title: "Add user avatar upload", description: "...", dependencies: [] },
-      { id: "124", title: "Avatar resizing service", description: "...", dependencies: ["123"] },
-      { id: "125", title: "Avatar in profile page", description: "...", dependencies: ["124"] },
-      { id: "126", title: "Update API docs", description: "...", dependencies: [] }
+      { id: "123", title: "Add user avatar upload", description: "...", dependencies: [], paths: ["src/avatar/upload/**"], mechanical: false },
+      { id: "124", title: "Avatar resizing service", description: "...", dependencies: ["123"], paths: ["src/avatar/resize/**"], mechanical: true },
+      { id: "125", title: "Avatar in profile page", description: "...", dependencies: ["124"], paths: ["src/profile/**"], mechanical: false },
+      { id: "126", title: "Update API docs", description: "...", dependencies: [], paths: ["docs/api.md"], mechanical: true }
     ],
     repo: "/path/to/repo",
     branch: "main",
@@ -107,6 +107,20 @@ should always run in parallel. The decomposition classifies each wave's dispatch
 
 So the campaign defaults to serial and only fans out when it's confident the items
 are truly independent. Width-1 waves are always serial regardless of classification.
+
+#### Fan-eligibility fields (`paths` / `mechanical`)
+
+Each item carries two AUTHOR-DECLARED fields that drive the deterministic
+fan-vs-serialize decision (built in campaign, issue #8):
+
+- `paths: string[]` — the file globs this item will touch (e.g. `["src/avatar/**", "docs/avatar.md"]`).
+- `mechanical: boolean` — `true` only for low-risk, mechanical work.
+
+An item is fan-eligible only when `mechanical` is `true` AND `paths[]` is non-empty.
+If `paths[]` is absent/empty, or `mechanical` is not `true`, the item **serializes**
+(bias to safety). To enable parallel fan within a wave, declare **disjoint** `paths[]`
+across same-wave items — overlapping globs force serialization so agents can't clobber
+each other's files.
 
 ### 4. Final Report
 

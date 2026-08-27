@@ -234,6 +234,45 @@ if [ "$ERRORS" -eq "$MODEL_ERRORS_BEFORE" ]; then
     echo "  OK: all workflow model: literals are pinned ids"
 fi
 
+# --- 3e. Inlined fan-eligibility Drift Guard (issue #8) ---
+# campaign.js runs in a sandbox with no require/fs, so the tested fan-eligibility
+# predicate is INLINED there byte-for-byte. This guard proves the inlined copy has
+# not drifted from the canonical source: it compares the CODE of the inlined block
+# (comments + blank lines + indentation stripped) against the canonical function
+# region in scripts/lib/fan-eligibility.js. Any logic drift fails CI.
+echo ""
+echo "--- Inlined fan-eligibility Drift Guard ---"
+
+CAMPAIGN_JS="${REPO_ROOT}/workflows/campaign.js"
+FE_LIB="${REPO_ROOT}/scripts/lib/fan-eligibility.js"
+
+fe_norm() {
+    # Normalize to CODE only so cosmetic differences don't false-trip the guard.
+    # Applied identically to BOTH copies, so it can only neutralize comment/format
+    # differences — any real logic drift still fails. Order: strip trailing inline
+    # `// ...` comments, then leading/trailing whitespace, then full-line comments
+    # and blank lines.
+    sed -E 's@[[:space:]]+//.*$@@; s/^[[:space:]]+//; s/[[:space:]]+$//' | grep -vE '^//' | grep -vE '^$' || true
+}
+
+if [ ! -f "$CAMPAIGN_JS" ] || [ ! -f "$FE_LIB" ]; then
+    echo "  SKIP: campaign.js or fan-eligibility.js not present"
+elif ! grep -q "BEGIN inlined fan-eligibility" "$CAMPAIGN_JS"; then
+    echo "  FAIL: campaign.js has no inlined fan-eligibility block (BEGIN marker missing)"
+    ERRORS=$((ERRORS + 1))
+else
+    inlined_code="$(awk '/BEGIN inlined fan-eligibility/{f=1;next} /END inlined fan-eligibility/{f=0} f' "$CAMPAIGN_JS" | fe_norm)"
+    canon_code="$(awk '/const GLOB_CHARS_RE/{f=1} /^module\.exports/{f=0} f' "$FE_LIB" | fe_norm)"
+
+    if [ "$inlined_code" = "$canon_code" ]; then
+        echo "  OK: inlined fan-eligibility matches scripts/lib/fan-eligibility.js"
+    else
+        echo "  FAIL: inlined fan-eligibility in campaign.js has DRIFTED from scripts/lib/fan-eligibility.js"
+        diff <(printf '%s\n' "$canon_code") <(printf '%s\n' "$inlined_code") | head -40 || true
+        ERRORS=$((ERRORS + 1))
+    fi
+fi
+
 # --- 4. Secrets Scan ---
 echo ""
 echo "--- Secrets Scan ---"
