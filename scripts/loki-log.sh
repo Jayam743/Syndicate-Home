@@ -14,7 +14,12 @@
 #     --doctrine "Step 0.5 says recraft substantial requests" \
 #     --severity low \
 #     --action "Added enumerated-request skip clause to doctrine" \
+#     --pinned-by "PR #42 (a1b2c3d)" \
 #     --session "Mantelpiece reachability reconstruction"
+#
+# --pinned-by <ref> is REQUIRED when --status=applied (the commit/PR/MR that pins
+# the fix). It is what promotes an applied finding into loki/CHANGELOG.md; without
+# it the entry stays out of the changelog until triaged. Optional for other statuses.
 #
 # Status values:
 #   applied  — fixed during the retro/session (most common)
@@ -39,23 +44,33 @@ SEVERITY="unknown"
 ACTION=""
 SESSION=""
 TS=""
+PINNED_BY=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --month)    MONTH="$2"; shift 2 ;;
-        --status)   STATUS="$2"; shift 2 ;;
-        --finding)  FINDING="$2"; shift 2 ;;
-        --doctrine) DOCTRINE="$2"; shift 2 ;;
-        --severity) SEVERITY="$2"; shift 2 ;;
-        --action)   ACTION="$2"; shift 2 ;;
-        --session)  SESSION="$2"; shift 2 ;;
-        --ts)       TS="$2"; shift 2 ;;
+        --month)     MONTH="$2"; shift 2 ;;
+        --status)    STATUS="$2"; shift 2 ;;
+        --finding)   FINDING="$2"; shift 2 ;;
+        --doctrine)  DOCTRINE="$2"; shift 2 ;;
+        --severity)  SEVERITY="$2"; shift 2 ;;
+        --action)    ACTION="$2"; shift 2 ;;
+        --session)   SESSION="$2"; shift 2 ;;
+        --ts)        TS="$2"; shift 2 ;;
+        --pinned-by) PINNED_BY="$2"; shift 2 ;;
         *) shift ;;
     esac
 done
 
 if [ -z "$FINDING" ]; then
     echo "loki-log: --finding is required" >&2
+    exit 1
+fi
+
+# An applied finding must name what pinned it — that ref is what promotes the
+# entry into loki/CHANGELOG.md (see scripts/loki-changelog.sh).
+if [ "$STATUS" = "applied" ] && [ -z "$PINNED_BY" ]; then
+    echo "loki-log: --pinned-by <ref> is required when --status=applied" >&2
+    echo "          (the commit/PR/MR that pins the fix, e.g. --pinned-by 'PR #42 (a1b2c3d)')" >&2
     exit 1
 fi
 
@@ -84,6 +99,7 @@ fi
     echo "- **Severity:** ${SEVERITY}"
     [ -n "$DOCTRINE" ] && echo "- **Doctrine:** ${DOCTRINE}"
     [ -n "$ACTION" ]   && echo "- **Action taken:** ${ACTION}"
+    [ -n "$PINNED_BY" ] && echo "- **Pinned-by:** ${PINNED_BY}"
     echo ""
 } >> "$LOG"
 

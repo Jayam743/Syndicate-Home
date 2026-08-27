@@ -76,6 +76,30 @@ durable, committed history.
 For each improvement the user greenlights, make the change (route through the normal
 doctrine — code-change → pipeline, etc.), then update that finding's status to
 `applied` in the log (or add a new applied entry noting the month-review action).
+An `applied` finding MUST carry a `- **Pinned-by:** <ref>` line (the commit/PR/MR
+that pins the fix) — `loki-log.sh --status applied` now requires `--pinned-by`.
+
+### 7. Regenerate the defect CHANGELOG
+After the status-flips in step 6, rebuild the resolved-defect rollup:
+```
+scripts/loki-changelog.sh
+```
+It sources `loki/logs/*.md` (ALL months), selects every `[applied]` finding that
+carries a `Pinned-by` ref, and rewrites `loki/CHANGELOG.md` from scratch — one row
+per defect: **defect** (title), **fix** (action taken), **pinned-by** (ref), **when**.
+
+- **Review the backfill dry-run.** The script prints every `[applied]` finding that
+  LACKS a `Pinned-by` line as "needs triage". For each: either backfill the pinning
+  ref (if the fix really shipped) or reclassify the finding (e.g. back to `open` if
+  the action was "none yet"). They stay OUT of the CHANGELOG until pinned — never
+  silently promote or drop them.
+- **It is REGENERABLE, not append-only.** `applied` is rebuttable and can regress; a
+  full regenerate means a finding that loses its `Pinned-by` (or flips status) drops
+  out automatically. Do not hand-edit `loki/CHANGELOG.md`.
+- Offer to commit `CHANGELOG.md` together with the synced log from step 5.
+
+> Recall integration is DEFERRED: when it lands, recall will index `CHANGELOG.md`
+> (small, resolved-only), NOT the raw log.
 
 ## Rules
 - **Never auto-apply.** Loki proposes; the human approves each change (Axiom 11-adjacent:
