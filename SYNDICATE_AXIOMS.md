@@ -41,7 +41,7 @@ This prevents runaway execution and drift from intent.
 
 "I tested it" means you ran it and saw green. Not "I think it works."
 "I reviewed it" means you checked specific lines. Not "it looks fine."
-Evidence packets prove what happened. Claims without evidence are noise.
+The Ledger and the model-audit log record what happened. Claims without evidence are noise.
 
 **Override requires:** a time machine.
 
@@ -80,7 +80,7 @@ Reasoning-heavy agents cannot be replaced by speed-optimized models.
 ## Axiom 9: Context Is Finite, State Is Not
 
 The context window will compact. Agents will forget.
-Pipeline state, evidence packets, and ledger entries persist to disk.
+Pipeline state and ledger entries persist to disk.
 Always write state. Never rely on context alone.
 
 **Override requires:** infinite context (not yet available).

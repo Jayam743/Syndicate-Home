@@ -144,7 +144,7 @@ Date range default: last Wednesday → this Wednesday (COB Wednesday)
 - Use `mcp__sdlc-server__pr_list` to pull merged PRs for the reporting period
 - For GitLab: `glab mr list --merged --after=YYYY-MM-DD`
 - For GitHub: `gh pr list --state=merged --search="merged:>YYYY-MM-DD"`
-- Evidence packets from completed pipelines live at `~/.syndicate/evidence/` — use these as primary source
+- Primary sources: git commits (via the `session-end-ledger.sh` hook) and `~/.syndicate/ledger/current-week.md`
 - **Godspeed mode**: track everything silently, include in final report. Don't interrupt the pipeline to confirm logging.
 - The `/wave` skill gives you current campaign status for weekly summaries
 

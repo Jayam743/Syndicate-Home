@@ -65,9 +65,6 @@ EOF
         OUTCOME="${1:-}"
         if [ -f "$STATE_FILE" ]; then
             sed -i "s/\"status\": \"active\"/\"status\": \"complete\"/" "$STATE_FILE"
-            # Write evidence packet
-            PIPELINE=$(grep '"pipeline"' "$STATE_FILE" | sed 's/.*: *"//;s/".*//')
-            TRIGGER=$(grep '"trigger"' "$STATE_FILE" | sed 's/.*: *"//;s/".*//')
             echo "[pipeline] Complete: $OUTCOME"
 
             # Archive

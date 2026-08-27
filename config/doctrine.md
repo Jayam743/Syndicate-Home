@@ -265,7 +265,6 @@ fails silently. A required field in the plan line the user reads does not.
 
 ## Step 5: Record
 
-- Multi-step work → write an evidence packet (`~/.syndicate/scripts/write-evidence-packet.sh`)
 - Any completed work → Ledger logs it (the SessionEnd hook does this automatically)
 - Loki-raised concerns → logged, not blocking (Axiom 6)
 
@@ -324,7 +323,7 @@ Everything else → log a concern, continue. "I'm not sure" is not a stop condit
 4. Am I using the toolkit, or reinventing it? → use the skill/workflow that exists
 5. Am I the only one spawning? → yes (Axiom 11), unless I AM Odin/the session
 6. Did I show the plan before acting? → yes, unless Godspeed
-7. Will this get recorded? → yes, evidence packet + Ledger
+7. Will this get recorded? → yes, the Ledger (current-week.md)
 8. **Was this a functional/wiring decision?** → if so, it must carry a recorded
    Loki→Athena disposition (or a waiver) before commit. The commit-msg gate
    enforces the trailer on the wiring surface; the plan line's `Decision-review:`

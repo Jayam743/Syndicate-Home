@@ -90,7 +90,7 @@ Every task flows through a pipeline. Odin identifies the full chain up front.
 | "test this" | Scribe → Gauntlet → Ledger |
 | "write + test + ship" | Scribe → Forge → Gauntlet → Athena → Hermes → Ledger |
 
-Pipelines produce **Evidence Packets** — structured records of what happened, stored at `~/.syndicate/evidence/`.
+Pipelines are recorded in the **Ledger** (`~/.syndicate/ledger/current-week.md`) — a running log of what happened, fed automatically by the SessionEnd hook.
 
 ---
 
@@ -162,13 +162,13 @@ cd ~/Syndicate  # or wherever you cloned it
 
 **What gets installed:**
 - `~/.claude/agents/` ← Syndicate agent definitions (symlinked)
-- `~/.syndicate/` ← Ledger tracking, evidence packets, pipeline state
+- `~/.syndicate/` ← Ledger tracking, pipeline state
 
 **Uninstall:** run `./uninstall.sh`. It's fully reversible and surgical:
 - Removes only Syndicate's agent/skill symlinks (yours and BJ's are untouched)
 - Strips only Syndicate's hook entries from `settings.json` (backs it up first;
   BJ's hooks and your own are preserved)
-- **Keeps your data by default** — ledger, evidence, conception ledgers
+- **Keeps your data by default** — ledger, conception ledgers
 - **Never touches** your session history in `~/.claude/projects/`
 - `./uninstall.sh --purge` also removes `~/.syndicate/` data (asks first)
 
@@ -213,14 +213,13 @@ Syndicate/
 │   ├── toolkit.md       ← full reference: skills, hooks, MCPs, decision matrix
 │   ├── models.md        ← model tiers and assignments
 │   ├── permissions.md   ← per-agent command reference
-│   ├── evidence-packet.md ← evidence packet format
+│   ├── model-audit.md   ← SessionEnd model-drift audit spec
 │   └── settings.template.json ← standalone settings.json
 ├── hooks/               ← safety hooks (standalone mode)
 ├── skills/              ← Syndicate-specific skills
 ├── scripts/
 │   ├── ci/              ← validate.sh, drift-check.sh
-│   ├── pipeline-state.sh ← pipeline state management
-│   └── write-evidence-packet.sh ← evidence packet writer
+│   └── pipeline-state.sh ← pipeline state management
 ├── loki/logs/           ← Loki's improvement observations
 ├── CLAUDE.md            ← project rules
 ├── SYNDICATE_AXIOMS.md  ← 10 binding rules + scar registry

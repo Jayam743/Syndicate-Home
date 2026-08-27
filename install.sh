@@ -231,7 +231,6 @@ echo ""
 echo "━━━ Ledger (live tracking) ━━━"
 mkdir -p "${SYNDICATE_DIR}/ledger/archive"
 mkdir -p "${SYNDICATE_DIR}/ledger/monthly"
-mkdir -p "${SYNDICATE_DIR}/evidence"
 if [ ! -f "${SYNDICATE_DIR}/ledger/current-week.md" ]; then
     cat > "${SYNDICATE_DIR}/ledger/current-week.md" << 'EOF'
 # Week: (auto-filled on first entry)
@@ -245,17 +244,15 @@ else
 fi
 echo ""
 
-# --- 5. Create Loki logs & evidence dirs ---
-echo "━━━ Loki + Evidence ━━━"
+# --- 5. Create Loki logs & pipeline dirs ---
+echo "━━━ Loki + Pipelines ━━━"
 mkdir -p "${SCRIPT_DIR}/loki/logs"
 mkdir -p "${SYNDICATE_DIR}/loki"
-mkdir -p "${SYNDICATE_DIR}/evidence"
 mkdir -p "${SYNDICATE_DIR}/pipelines"
 mkdir -p "${SYNDICATE_DIR}/conception"
 mkdir -p "${SYNDICATE_DIR}/investigations"
 echo "  ✓ ~/.syndicate/loki/ (live improvement findings — auto-logged by /retro)"
 echo "  ✓ loki/logs/ (committed monthly archive — synced by /loki-review)"
-echo "  ✓ ~/.syndicate/evidence/ (pipeline evidence packets)"
 echo "  ✓ ~/.syndicate/pipelines/ (pipeline state persistence)"
 echo "  ✓ ~/.syndicate/conception/ (Muse decision ledgers)"
 echo "  ✓ ~/.syndicate/investigations/ (Specter flight logs)"
@@ -331,7 +328,7 @@ echo "╚═══════════════════════�
 echo ""
 echo "Installed:"
 echo "  ~/.claude/agents/    ← Syndicate agents (13 specialists)"
-echo "  ~/.syndicate/        ← Ledger tracking + evidence packets"
+echo "  ~/.syndicate/        ← Ledger tracking + model audit"
 echo ""
 if [ "$BJ_DETECTED" = true ]; then
     echo "Coexistence mode: BJ's workflow owns hooks + skills."

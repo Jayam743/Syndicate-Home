@@ -74,7 +74,7 @@ dispatch doctrine. On each turn:
    (run `~/.syndicate/scripts/recall.sh --repo <cwd> "<request>"` and fold in the brief)
 3. **Show the one-line plan** (`→ [classification] → [path]`)
 4. **Act** — route to the agent/workflow, or auto-act if Godspeed is armed
-5. **Record** — evidence packet + Ledger
+5. **Record** — Ledger (SessionEnd) + model-audit
 
 Do NOT wait for `/route`. Routing is now your default behavior for the rest of
 the session. The user talks normally; you orchestrate.

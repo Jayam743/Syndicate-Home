@@ -110,12 +110,12 @@ Ledger tracks work in real-time to `~/.syndicate/ledger/current-week.md`.
 - Weekly rotation: Wednesday COB
 - Monthly rollup for Loki's improvement cycle
 
-## Evidence Packets
+## Work Record
 
-Every completed pipeline produces an evidence packet at `~/.syndicate/evidence/`.
-- What happened, who did what, what the outcome was
-- Used by Ledger (weekly reports), Loki (patterns), and Specter (past investigations)
-- Audit trail: proves agents did what you asked
+The honest record of what happened lives in the Ledger
+(`~/.syndicate/ledger/current-week.md`), fed automatically by the SessionEnd hook.
+A companion SessionEnd audit writes `~/.syndicate/ledger/model-audit.md` — one row per
+subagent proving it ran on its intended model (see `config/model-audit.md`).
 
 ## Pipeline State Persistence
 

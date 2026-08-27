@@ -114,6 +114,10 @@
           {
             "type": "command",
             "command": "~/.syndicate/hooks/session-end-ledger.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.syndicate/hooks/session-end-model-audit.sh"
           }
         ]
       }

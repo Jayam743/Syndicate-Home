@@ -6,7 +6,7 @@ set -uo pipefail
 #
 # Removes ONLY what Syndicate installed. Preserves everything that was
 # already there — BJ's workflow, your own agents/skills, and (by default)
-# your history, ledger, and evidence.
+# your history and ledger.
 #
 # Reversal targets:
 #   1. Agent symlinks in ~/.claude/agents/ (only ones pointing at this repo)
@@ -16,7 +16,7 @@ set -uo pipefail
 #
 # PRESERVED by default (your data — "old things stay"):
 #   - ~/.syndicate/ledger/       (your activity log)
-#   - ~/.syndicate/evidence/     (pipeline records)
+#   - ~/.syndicate/evidence/     (legacy evidence dir, no longer written)
 #   - ~/.syndicate/conception/   (Muse decision ledgers)
 #   - ~/.syndicate/investigations/
 #   - ~/.claude/projects/        (your session history — NEVER touched)
@@ -38,7 +38,7 @@ for arg in "$@"; do
         -h|--help)
             echo "Usage: ./uninstall.sh [--purge]"
             echo "  (default)  remove Syndicate agents/skills/hooks; KEEP your data + history"
-            echo "  --purge    ALSO remove ~/.syndicate data dirs (ledger/evidence/etc) — asks first"
+            echo "  --purge    ALSO remove ~/.syndicate data dirs (ledger/pipelines/etc) — asks first"
             exit 0 ;;
     esac
 done
@@ -50,7 +50,7 @@ echo ""
 echo "This removes ONLY Syndicate. It preserves:"
 echo "  • BJ's workflow (if present) — untouched"
 echo "  • Your session history (~/.claude/projects/) — NEVER touched"
-echo "  • Your ledger/evidence data (unless --purge)"
+echo "  • Your ledger data (unless --purge)"
 echo ""
 
 # --- 1. Remove agent symlinks that point at THIS repo ---
@@ -162,7 +162,7 @@ echo "━━━ Your data ━━━"
 if [ "$PURGE" = true ]; then
     echo "  --purge requested. This will DELETE:"
     echo "    ${SYNDICATE_DIR}/ledger/       (activity log)"
-    echo "    ${SYNDICATE_DIR}/evidence/     (pipeline records)"
+    echo "    ${SYNDICATE_DIR}/evidence/     (legacy evidence dir, no longer written)"
     echo "    ${SYNDICATE_DIR}/conception/   (Muse ledgers)"
     echo "    ${SYNDICATE_DIR}/investigations/"
     echo "    ${SYNDICATE_DIR}/pipelines/"
@@ -182,7 +182,7 @@ if [ "$PURGE" = true ]; then
         echo "  ○ cancelled — data preserved"
     fi
 else
-    echo "  ○ PRESERVED (your ledger, evidence, conception ledgers, history)"
+    echo "  ○ PRESERVED (your ledger, conception ledgers, history)"
     echo "    Your session history in ~/.claude/projects/ was never touched."
     echo "    (Run with --purge to remove Syndicate data too.)"
 fi
