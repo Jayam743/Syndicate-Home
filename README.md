@@ -136,9 +136,9 @@ The big ones:
 
 | Hook | Type | Purpose |
 |------|------|---------|
-| `pre-push-test-gate.sh` | PreToolUse | Blocks push without test sentinel |
+| `pre-push-test-gate.sh` | PreToolUse | Blocks push without a fresh per-worktree test sentinel |
 | `pre-stage-secrets-gate.sh` | PreToolUse | Blocks staging .env/.key/.pem |
-| `post-tool-test-sentinel.sh` | PostToolUse | Creates sentinel when tests pass |
+| `post-tool-test-sentinel.sh` | PostToolUse | Creates the per-worktree sentinel when tests pass |
 | `godspeed.sh` | Stop | Decaying autonomy gate |
 | `precheck-asking-detector.sh` | Stop | Blocks agents that ask instead of act |
 | `post-compact-reread.sh` | PostCompact | Re-reads state after compaction |

@@ -175,6 +175,9 @@ if [ "$PURGE" = true ]; then
                "${SYNDICATE_DIR}/pipelines"
         rm -f "${SYNDICATE_DIR}/.godspeed" "${SYNDICATE_DIR}/.godspeed-state" \
               "${SYNDICATE_DIR}/.test-sentinel" "${SYNDICATE_DIR}/.installed"
+        # Per-worktree sentinels (B′, issue #30); legacy .test-sentinel above
+        # kept for back-compat with pre-#30 installs.
+        rm -rf "${SYNDICATE_DIR}/sentinels"
         # Remove ~/.syndicate entirely if now empty
         rmdir "${SYNDICATE_DIR}" 2>/dev/null && echo "  ✓ removed ~/.syndicate/ entirely" \
             || echo "  ✓ removed Syndicate data (dir kept — had other contents)"

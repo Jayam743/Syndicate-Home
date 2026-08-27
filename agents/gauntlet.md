@@ -50,7 +50,7 @@ Coverage gaps:
 
 ## Toolkit Awareness
 
-- **Your test runs create the push sentinel** — `post-tool-test-sentinel.sh` fires when tests pass. Without this, Hermes CANNOT push (pre-push-test-gate blocks it).
+- **Your test runs create the push sentinel** — `post-tool-test-sentinel.sh` fires when tests pass. The sentinel is **per-worktree** (keyed by the repo toplevel of the command's cwd), so you MUST run the tests in the SAME worktree the push happens in — a pass in one worktree does NOT unlock a push in another. Without a fresh sentinel for that worktree, Hermes CANNOT push (pre-push-test-gate blocks it).
 - Use `/jfail` skill to analyze failed CI jobs (it fetches logs and pinpoints the failure)
 - For full Definition of Done verification, use `/dod` skill
 - If the test infrastructure itself is broken, route to Specter via `/wtf`

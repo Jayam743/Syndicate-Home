@@ -97,7 +97,7 @@ Hooks fire based on lifecycle events. Agents should expect their behavior.
 
 | Hook | What It Does | Agent Impact |
 |------|-------------|--------------|
-| `pre-push-test-gate.sh` | Blocks `git push` unless tests ran (sentinel file) | Gauntlet MUST run tests before Hermes pushes |
+| `pre-push-test-gate.sh` | Blocks `git push` unless tests ran (per-worktree sentinel keyed by repo toplevel) | Gauntlet MUST run tests before Hermes pushes |
 | `pre-stage-secrets-gate.sh` | Blocks `git add` of `.env`, `.key`, `.pem`, credentials | Hermes/Forge can't accidentally stage secrets |
 | `pre-dispatch-godspeed-gate.sh` | **Only active under a Godspeed mandate.** Checkpoints a mutating command (push/reset/rebase, `rm`, `aws` delete/terminate/rb, `terraform apply\|destroy`, `kubectl delete`, `helm`, `gh repo delete`, `glab … delete`) unless it can PROVE the branch is non-protected. | All agents: under Godspeed, mutations on `main`/`master`/`prod`/`production`/`trunk`/`release/*`/`hotfix/*`/`kahuna/*` (or detached HEAD / non-worktree) get checkpointed — switch to a feature branch or run manually. `GODSPEED_GATE_DISABLED=1` overrides. |
 
@@ -105,7 +105,7 @@ Hooks fire based on lifecycle events. Agents should expect their behavior.
 
 | Hook | What It Does | Agent Impact |
 |------|-------------|--------------|
-| `post-tool-test-sentinel.sh` | Creates sentinel when tests pass | Gauntlet's test runs unlock Hermes's push |
+| `post-tool-test-sentinel.sh` | Creates the per-worktree sentinel when tests pass | Gauntlet's test runs unlock Hermes's push (same worktree only) |
 | `post-tool-context-tracker.sh` | Tracks Skill/ToolSearch invocations | Context awareness for nerf budget |
 
 ### Stop Hooks (can BLOCK the agent mid-action)

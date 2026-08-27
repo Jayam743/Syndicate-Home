@@ -67,6 +67,14 @@ You cannot push untested code. The test sentinel is the key.
 Gauntlet runs tests → sentinel created → Hermes can push.
 No sentinel → no push. The gate is mechanical, not negotiable.
 
+The sentinel is **per-worktree** (keyed by the repo toplevel of the command's
+cwd, stored at `~/.syndicate/sentinels/<key>`), so a pass in one worktree cannot
+green-light a push in another under parallel fan-out.
+
+**Load-bearing contract (issue #30, for #8's fan path):** this per-worktree
+guarantee holds ONLY while fan-out ⇒ each item runs in its OWN worktree. #8 MUST
+assert worktree isolation before fanning; if it cannot, it MUST forbid the fan.
+
 **Override requires:** integration branches where CI handles the gate instead.
 
 ## Axiom 8: Same Family Fallback Only

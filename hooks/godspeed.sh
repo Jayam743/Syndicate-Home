@@ -21,6 +21,41 @@ set -uo pipefail
 MANDATE_FILE="${HOME}/.syndicate/.godspeed"
 STATE_FILE="${HOME}/.syndicate/.godspeed-state"
 
+# --- Worktree-keyed sentinel: shared key derivation (B′, issue #30) ---
+# Resolve a stable per-worktree key from a command's cwd. The key is the sha1
+# of the repo TOPLEVEL (`git -C <cwd> rev-parse --show-toplevel`). Honors an
+# explicit `git -C <path>` inside the acted-on command. Prints the key on
+# success; prints nothing and returns 1 on failure.
+# FAIL CLOSED: callers MUST treat a non-zero return as "no key" and NEVER fall
+# back to a shared global sentinel. This function is duplicated verbatim in
+# post-tool-test-sentinel.sh and pre-push-test-gate.sh — keep the copies in sync.
+syndicate_sentinel_key() {
+    local cwd="$1" cmd="${2:-}" base gitc toplevel key
+    # Honor an explicit `git -C <path>` in the command (takes precedence over cwd).
+    gitc=$(printf '%s\n' "$cmd" \
+        | grep -oE '(^|[[:space:]])git[[:space:]]+-C[[:space:]]+[^[:space:]]+' \
+        | head -n1 | grep -oE '[^[:space:]]+$' || true)
+    gitc=${gitc%\"}
+    gitc=${gitc#\"}
+    if [[ -n "$gitc" ]]; then
+        base="$gitc"
+    else
+        base="$cwd"
+    fi
+    [[ -n "$base" ]] || return 1
+    toplevel=$(git -C "$base" rev-parse --show-toplevel 2>/dev/null) || return 1
+    [[ -n "$toplevel" ]] || return 1
+    if command -v sha1sum >/dev/null 2>&1; then
+        key=$(printf '%s' "$toplevel" | sha1sum | awk '{print $1}')
+    elif command -v shasum >/dev/null 2>&1; then
+        key=$(printf '%s' "$toplevel" | shasum | awk '{print $1}')
+    else
+        return 1
+    fi
+    [[ -n "$key" ]] || return 1
+    printf '%s' "$key"
+}
+
 # --- ABSOLUTE GATES (never overridden by godspeed) ---
 ABSOLUTE_GATES=(
     "production"
@@ -40,6 +75,7 @@ ABSOLUTE_GATES=(
 
 INPUT=$(cat 2>/dev/null || true)
 TRANSCRIPT_PATH=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
+CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)
 
 # Pull the last assistant message's tool_use commands out of the transcript.
 # This is the agent's most recent real action(s) — not its prose. Also pull the
@@ -132,8 +168,12 @@ echo "$TURNS_SINCE" > "$STATE_FILE"
 EXPECTED_TOTAL=20
 BAR_PCT=$(( TURNS_SINCE * 100 / EXPECTED_TOTAL ))
 
-# Confidence: 80% if tests ran recently, 40% otherwise.
-if [[ -f "${HOME}/.syndicate/.test-sentinel" ]]; then
+# Confidence: 80% if tests ran recently for THIS worktree, 40% otherwise.
+# Repointed to the per-worktree sentinel (B′, issue #30): the STOP payload
+# carries .cwd, so we resolve the same key the gate/writer use. FAIL CLOSED to
+# the 40% floor if the worktree can't be resolved (never assume tests ran).
+SENTINEL_KEY=$(syndicate_sentinel_key "$CWD" "") || SENTINEL_KEY=""
+if [[ -n "$SENTINEL_KEY" && -f "${HOME}/.syndicate/sentinels/${SENTINEL_KEY}" ]]; then
     CONFIDENCE_PCT=80
 else
     CONFIDENCE_PCT=40
