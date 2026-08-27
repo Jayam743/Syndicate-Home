@@ -51,6 +51,10 @@
           {
             "type": "command",
             "command": "~/.syndicate/hooks/pre-stage-secrets-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.syndicate/hooks/pre-dispatch-godspeed-gate.sh"
           }
         ]
       }

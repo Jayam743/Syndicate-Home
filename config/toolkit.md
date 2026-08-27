@@ -99,6 +99,7 @@ Hooks fire based on lifecycle events. Agents should expect their behavior.
 |------|-------------|--------------|
 | `pre-push-test-gate.sh` | Blocks `git push` unless tests ran (sentinel file) | Gauntlet MUST run tests before Hermes pushes |
 | `pre-stage-secrets-gate.sh` | Blocks `git add` of `.env`, `.key`, `.pem`, credentials | Hermes/Forge can't accidentally stage secrets |
+| `pre-dispatch-godspeed-gate.sh` | **Only active under a Godspeed mandate.** Checkpoints a mutating command (push/reset/rebase, `rm`, `aws` delete/terminate/rb, `terraform apply\|destroy`, `kubectl delete`, `helm`, `gh repo delete`, `glab … delete`) unless it can PROVE the branch is non-protected. | All agents: under Godspeed, mutations on `main`/`master`/`prod`/`production`/`trunk`/`release/*`/`hotfix/*`/`kahuna/*` (or detached HEAD / non-worktree) get checkpointed — switch to a feature branch or run manually. `GODSPEED_GATE_DISABLED=1` overrides. |
 
 ### PostToolUse (fires after tool execution)
 
@@ -188,6 +189,23 @@ When the user says **"godspeed"**, it arms a decaying autonomy mandate:
 - Scribe → Forge → Athena → Hermes flows without human gates
 - Specter still presents options (investigation needs human judgment)
 - Loki challenges are logged as concerns, don't block
+
+**Two orthogonal lifetimes — decay vs. expire:**
+
+| Mechanism | Scope | Owner | Effect |
+|-----------|-------|-------|--------|
+| **Decay** | INTRA-session | `godspeed.sh` (Stop hook) | Confidence erodes turn-by-turn (`bar = d/N`); below threshold → checkpoint THIS turn (mandate stays armed). |
+| **Expire** | INTER-session | `session-start-syndicate.sh` (SessionStart) | A mandate must not silently survive a session boundary. See disarm matrix below. Also enforces an 8h wall-clock TTL backstop. |
+
+These are independent: decay handles "you've been running a while this session"; expire handles "a new session started, is this old mandate still valid?".
+
+**SessionStart disarm matrix (by `.source`):**
+- `startup`, `clear` → auto-**DISARM** (fresh boot / cleared context must not inherit a stale mandate).
+- `resume`, `unknown` → **KEEP** (still armed), warn loudly, then apply the TTL.
+- `compact` → **untouched** (PostCompact owns the compact path).
+- **TTL backstop (8h = 28800s)** runs regardless of source while a mandate exists: unparseable/missing/future-dated `armed=` timestamp → DISARM (fail-closed); age > 8h → DISARM.
+
+**Branch-allowlist layer (`pre-dispatch-godspeed-gate.sh`):** under a mandate, mutating commands are checkpointed unless the branch is provably non-protected — this is ADDITIVE to, not a replacement for, the ABSOLUTE_GATES keyword net in `godspeed.sh`. **Maintenance ritual:** when a new mutating tool/verb enters the workflow, add its pattern to the gate's `MUTATING_VERBS` list. ABSOLUTE_GATES is the last-line safety net (prod/deploy/destroy keywords), NOT a substitute for keeping the branch gate's verb filter current.
 
 ## Platform Detection
 

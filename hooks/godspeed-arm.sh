@@ -21,6 +21,9 @@ expected_turns=${1:-20}
 armed_by=user
 EOF
 
+# Mandate file governs autonomous execution — restrict to the owner.
+chmod 600 "$MANDATE_FILE"
+
 # Reset turn counter
 echo "0" > "$STATE_FILE"
 

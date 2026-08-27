@@ -15,7 +15,7 @@
 #     Code's git-ignored personal layer). So self-dispatch fires only in repos
 #     that have been activated.
 
-set -euo pipefail
+set -uo pipefail
 
 # Locate the Syndicate repo (this script lives in <repo>/hooks/ or is symlinked)
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
@@ -25,9 +25,65 @@ DOCTRINE="${REPO_ROOT}/config/doctrine.md"
 # If we can't find the doctrine, fail silent (don't break the session)
 [ -f "$DOCTRINE" ] || exit 0
 
-# Check for an active Godspeed mandate
+# --- Godspeed inter-session expiry (Design 1) --------------------------------
+# Decay (godspeed.sh) is INTRA-session: confidence erodes turn-by-turn.
+# Expiry (here) is INTER-session: a mandate should not silently survive a fresh
+# session boot. Orthogonal mechanisms. SessionStart stdout is injected into
+# context, so any warning below is kept short.
+#
+# Read the CC hook payload; .source tells us how the session started.
+INPUT=$(cat 2>/dev/null || true)
+SOURCE=$(printf '%s' "$INPUT" | jq -r '.source // "unknown"' 2>/dev/null || echo unknown)
+
+MANDATE_FILE="${HOME}/.syndicate/.godspeed"
+STATE_FILE="${HOME}/.syndicate/.godspeed-state"
+GODSPEED_TTL_SECONDS=28800  # 8h wall-clock backstop
+GODSPEED_NOTICE=""
+
+disarm_mandate() {
+    rm -f "$MANDATE_FILE" "$STATE_FILE"
+}
+
+# PostCompact owns the compact path — do nothing to the mandate on compact.
+# (Regression armor: SessionStart can fire with source=compact.)
+if [[ "$SOURCE" != "compact" && -f "$MANDATE_FILE" ]]; then
+    case "$SOURCE" in
+        startup|clear)
+            # Fresh boot / cleared context — a mandate from a prior session must
+            # not carry over silently. Auto-disarm.
+            disarm_mandate
+            GODSPEED_NOTICE="⚠ Godspeed mandate auto-DISARMED (session ${SOURCE}). Re-arm with \"godspeed\" if intended."
+            ;;
+        *)
+            # resume / unknown → KEEP the mandate, but warn loudly.
+            GODSPEED_NOTICE="⚠ Godspeed mandate KEPT across session ${SOURCE} — still ARMED. Say HALT! to revoke."
+            ;;
+    esac
+fi
+
+# Wall-time TTL backstop — ALWAYS runs while a mandate exists, regardless of
+# source (survivors from resume/unknown still age out). Fails CLOSED.
+if [[ "$SOURCE" != "compact" && -f "$MANDATE_FILE" ]]; then
+    ARMED=$(grep -m1 '^armed=' "$MANDATE_FILE" 2>/dev/null | cut -d= -f2- || true)
+    ARMED_EPOCH=$(date -d "$ARMED" +%s 2>/dev/null || true)
+    NOW_EPOCH=$(date +%s)
+    if [[ -z "$ARMED" || -z "$ARMED_EPOCH" ]]; then
+        # Missing / unparseable armed timestamp — cannot prove freshness → disarm.
+        disarm_mandate
+        GODSPEED_NOTICE="⚠ Godspeed mandate DISARMED — armed timestamp missing/unparseable (fail-closed)."
+    elif (( ARMED_EPOCH > NOW_EPOCH )); then
+        # Future-dated (clock skew / tampering) — cannot trust → disarm.
+        disarm_mandate
+        GODSPEED_NOTICE="⚠ Godspeed mandate DISARMED — armed timestamp is in the future (fail-closed)."
+    elif (( NOW_EPOCH - ARMED_EPOCH > GODSPEED_TTL_SECONDS )); then
+        disarm_mandate
+        GODSPEED_NOTICE="⚠ Godspeed mandate EXPIRED (>8h old) — auto-DISARMED. Re-arm with \"godspeed\" if intended."
+    fi
+fi
+
+# Reflect the post-check state in the banner.
 GODSPEED_STATE="inactive"
-if [ -f "${HOME}/.syndicate/.godspeed" ]; then
+if [ -f "$MANDATE_FILE" ]; then
     GODSPEED_STATE="ARMED"
 fi
 
@@ -54,6 +110,7 @@ top) → then just talk. If they run /syndicate, re-affirm this mode. If a
 session started cold (before this hook), /syndicate activates it manually.
 
 Godspeed: ${GODSPEED_STATE}
+${GODSPEED_NOTICE}
 ${PIPELINE_STATE}
 
 The full dispatch doctrine is at:
