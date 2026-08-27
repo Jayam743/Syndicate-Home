@@ -315,6 +315,17 @@ if [ "$ERRORS" -eq 0 ]; then
     echo "  OK: shell scripts valid"
 fi
 
+# --- 7. Script Tests ---
+echo ""
+echo "--- Script Tests ---"
+
+if bash "${SCRIPT_DIR}/test.sh"; then
+    echo "  OK: all script tests passed"
+else
+    echo "  FAIL: script tests failed"
+    ERRORS=$((ERRORS + 1))
+fi
+
 # --- Summary ---
 echo ""
 echo "=========================="

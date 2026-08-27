@@ -78,23 +78,30 @@ rate() { # $1=model-id  -> echoes "in out cread cwrite"
   esac
 }
 
-# Collect all transcript files: main + any discoverable subagent transcripts
+# Collect all transcript files: main + this session's subagent transcripts.
 TRANSCRIPTS=("$TRANSCRIPT")
 SUBAGENT_NOTE=""
 TRANSCRIPT_DIR="$(dirname "$TRANSCRIPT")"
+SESSION_ID="$(basename "$TRANSCRIPT" .jsonl)"
 
-# Look for sibling agent-*.jsonl and task-*.jsonl files (subagent transcripts)
-if [ -d "$TRANSCRIPT_DIR" ]; then
+# Subagent transcripts live under a PER-SESSION folder:
+#   <project>/<session-id>/subagents/agent-*.jsonl
+# The old `-maxdepth 1` glob looked for them as SIBLINGS of the main .jsonl —
+# where they never are — so it matched nothing and silently excluded ALL
+# delegated (subagent) cost. Scope discovery to THIS session's folder so we
+# recover subagent cost WITHOUT summing other sessions' subagents (over-count).
+SUBAGENT_DIR="${TRANSCRIPT_DIR}/${SESSION_ID}/subagents"
+if [ -d "$SUBAGENT_DIR" ]; then
   while IFS= read -r -d '' subfile; do
-    # Skip if it's the main transcript itself
+    # Skip if it's the main transcript itself (defensive; it lives one level up)
     if [ "$subfile" != "$TRANSCRIPT" ]; then
       TRANSCRIPTS+=("$subfile")
     fi
-  done < <(find "$TRANSCRIPT_DIR" -maxdepth 1 \( -name "agent-*.jsonl" -o -name "task-*.jsonl" \) -print0 2>/dev/null)
+  done < <(find "$SUBAGENT_DIR" -maxdepth 1 \( -name "agent-*.jsonl" -o -name "task-*.jsonl" \) -print0 2>/dev/null)
 fi
 
 if [ "${#TRANSCRIPTS[@]}" -eq 1 ]; then
-  SUBAGENT_NOTE="NOTE: Only main transcript processed. Subagent costs are excluded (no sibling agent-*.jsonl/task-*.jsonl found)."
+  SUBAGENT_NOTE="NOTE: Only main transcript processed. No subagent transcripts found (looked in <session-id>/subagents/agent-*.jsonl)."
 fi
 
 # Sum tokens per model out of all transcripts, compute cost, emit a table + totals.
