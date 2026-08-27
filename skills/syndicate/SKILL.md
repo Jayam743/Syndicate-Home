@@ -37,6 +37,21 @@ Also read `config/toolkit.md` so you know every skill/hook/workflow available.
 - **Coexistence:** is BJ's workflow active (did `/engage` run)? If so, note that
   Syndicate layers on top — BJ's gates/hooks still enforce; Syndicate adds routing.
 
+### 2.5 Offer per-repo activation (progressive enhancement)
+Check whether the current repo is *activated* — i.e. whether `./.claude/settings.local.json`
+already contains the Syndicate SessionStart entry (its command ends with
+`/.syndicate/hooks/session-start-syndicate.sh`). If it does NOT (file missing, no
+`.hooks.SessionStart`, or no matching command), OFFER to activate this repo:
+
+> This repo isn't activated for Syndicate self-dispatch yet. Want me to run
+> `syndicate-activate` so future sessions here auto-load the crew? (writes
+> `.claude/settings.local.json`, git-ignored; does not touch BJ's settings)
+
+If the user agrees, run `~/.syndicate/scripts/syndicate-activate.sh` from the repo
+root. This is opt-in and reversible (`syndicate-deactivate`). The first `/syndicate`
+in a repo thus arms it for all future sessions — while the current session is
+already live regardless.
+
 ### 3. Announce activation
 Print a short banner so the user knows the crew is live:
 
@@ -76,7 +91,9 @@ Syndicate layers ON TOP, it does not replace:
 
 - Run once per session. Running again just re-affirms the mode (harmless).
 - The SessionStart hook (`session-start-syndicate.sh`) auto-activates this on fresh
-  sessions — so `/syndicate` is mainly for: (a) sessions that started before the
-  hook, (b) explicitly re-arming after a compact, or (c) your muscle-memory flow
-  after `/engage`.
+  sessions in ACTIVATED repos (those where `syndicate-activate` has written
+  `.claude/settings.local.json`; standalone installs are activated globally) — so
+  `/syndicate` is mainly for: (a) repos not yet activated (it will offer to activate
+  them), (b) sessions that started before the hook, (c) explicitly re-arming after a
+  compact, or (d) your muscle-memory flow after `/engage`.
 - To stand down: say "stand down Syndicate" and revert to manual `/route` only.

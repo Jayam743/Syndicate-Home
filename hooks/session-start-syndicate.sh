@@ -4,13 +4,16 @@
 # This is what makes Syndicate a SELF-SYSTEM rather than a set of tools waiting
 # to be called. It injects the dispatch doctrine into the session context at
 # startup, so the session classifies and routes EVERY request automatically —
-# in any project, without the user typing /route.
+# in ACTIVATED repos, without the user typing /route.
 #
-# Install: add to ~/.claude/settings.json under hooks.SessionStart
-#   { "hooks": { "SessionStart": ["~/.syndicate/hooks/session-start-syndicate.sh"] } }
-#
-# The installer wires this automatically in standalone mode. In layered mode
-# (BJ's workflow present), it's added as an ADDITIVE SessionStart hook.
+# Wiring:
+#   - Standalone mode: the installer registers this GLOBALLY in
+#     ~/.claude/settings.json under hooks.SessionStart.
+#   - Layered mode (BJ's workflow present): Syndicate does NOT touch BJ's shared
+#     ~/.claude/settings.json. Each repo opts in by running `syndicate-activate`,
+#     which adds this hook to that repo's ./.claude/settings.local.json (Claude
+#     Code's git-ignored personal layer). So self-dispatch fires only in repos
+#     that have been activated.
 
 set -euo pipefail
 

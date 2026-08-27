@@ -137,6 +137,16 @@ else
 fi
 echo ""
 
+# --- 3b. Warn about per-repo activation (layered mode) ---
+echo "━━━ Per-repo activation ━━━"
+echo "  ⚠ Repos activated with 'syndicate-activate' have Syndicate entries in their"
+echo "    own ./.claude/settings.local.json. Those persist across all N repos after"
+echo "    uninstall and will point at now-dead ~/.syndicate/hooks/ paths."
+echo "    This uninstaller does NOT scan the filesystem for them (safety)."
+echo "    In each such repo, clean up with:"
+echo "        cd <repo> && syndicate-deactivate"
+echo ""
+
 # --- 4. Remove the hooks symlink dir ---
 echo "━━━ ~/.syndicate/hooks ━━━"
 if [ -d "${SYNDICATE_DIR}/hooks" ]; then

@@ -96,6 +96,18 @@ for scr in "${SCRIPT_DIR}/scripts/"*.sh; do
     ln -sf "$scr" "$starget"
 done
 echo "  ✓ Scripts linked to ~/.syndicate/scripts/ (recall, loki-log, investigation-memory, …)"
+
+# User-facing per-repo activation commands. Same symlink pattern as above; called
+# by name from a repo to opt that repo into Syndicate self-dispatch (layered mode).
+for actscr in syndicate-activate.sh syndicate-deactivate.sh; do
+    src="${SCRIPT_DIR}/scripts/${actscr}"
+    [ -e "$src" ] || continue
+    chmod +x "$src" 2>/dev/null || true
+    tgt="${SYNDICATE_SCRIPTS}/${actscr}"
+    [ -L "$tgt" ] && rm "$tgt"
+    ln -sf "$src" "$tgt"
+done
+echo "  ✓ syndicate-activate / syndicate-deactivate linked (per-repo self-dispatch)"
 echo ""
 
 # --- 3. Install Hooks ---
@@ -118,22 +130,26 @@ SETTINGS_FILE="${CLAUDE_DIR}/settings.json"
 SS_HOOK="${SYNDICATE_HOOKS}/session-start-syndicate.sh"
 
 # The SessionStart hook is what makes Syndicate a SELF-SYSTEM — it injects the
-# dispatch doctrine so the session self-routes in ANY project. Register it
+# dispatch doctrine so the session self-routes in ACTIVATED repos. In standalone
+# mode it is registered globally in ~/.claude/settings.json; in layered mode it
+# is NOT written to BJ's shared settings — instead each repo opts in per-repo via
+# `syndicate-activate` (writes ./.claude/settings.local.json). Register it
 # additively (never clobber existing hooks).
 # Register a hook additively in Claude Code's object form:
 #   { "matcher": "<m>", "hooks": [ { "type": "command", "command": "<path>" } ] }
 # Matches against the nested command string so it's idempotent AND compatible
 # with existing object-form entries (like BJ's workflow uses).
-#   $1 = event name (SessionStart / SessionEnd / ...)
-#   $2 = matcher (e.g. "startup"; use "" for events that take no matcher)
-#   $3 = command path
-#   $4 = human label for the echo
+#   $1 = target settings file
+#   $2 = event name (SessionStart / SessionEnd / ...)
+#   $3 = matcher (e.g. "startup"; use "" for events that take no matcher)
+#   $4 = command path
+#   $5 = human label for the echo
 register_hook() {
-    local event="$1" matcher="$2" cmd="$3" label="$4" tmp
+    local file="$1" event="$2" matcher="$3" cmd="$4" label="$5" tmp
     # Already present anywhere in this event's tree?
     if jq -e --arg c "$cmd" --arg ev "$event" \
         '[(.hooks[$ev] // [])[] | (.command? // (.hooks[]?.command // empty))] | index($c)' \
-        "$SETTINGS_FILE" >/dev/null 2>&1; then
+        "$file" >/dev/null 2>&1; then
         echo "  ○ ${label} already registered"
         return
     fi
@@ -142,30 +158,39 @@ register_hook() {
         .hooks[$ev] = ((.hooks[$ev] // []) + [
             ($m | if . == "" then {hooks:[{type:"command",command:$c}]}
                   else {matcher:$m, hooks:[{type:"command",command:$c}]} end)
-        ])' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
+        ])' "$file" > "$tmp" && mv "$tmp" "$file"
     echo "  ✓ ${label} registered"
 }
 
+# $1 = target settings file
 register_sessionstart() {
+    local file="$1"
     if ! command -v jq &>/dev/null; then
-        echo "  ⚠  jq not found — add these to ${SETTINGS_FILE} manually (object form):"
+        echo "  ⚠  jq not found — add these to ${file} manually (object form):"
         echo "     SessionStart(matcher=startup) → ${SS_HOOK}"
         echo "     SessionEnd → ${SYNDICATE_HOOKS}/session-end-ledger.sh"
         return
     fi
-    [ -f "$SETTINGS_FILE" ] || echo '{}' > "$SETTINGS_FILE"
+    [ -f "$file" ] || echo '{}' > "$file"
 
-    register_hook "SessionStart" "startup" "$SS_HOOK" "SessionStart self-dispatch (all projects)"
-    register_hook "SessionEnd" "" "${SYNDICATE_HOOKS}/session-end-ledger.sh" "SessionEnd ledger hook"
+    register_hook "$file" "SessionStart" "startup" "$SS_HOOK" "SessionStart self-dispatch"
+    register_hook "$file" "SessionEnd" "" "${SYNDICATE_HOOKS}/session-end-ledger.sh" "SessionEnd ledger hook"
 }
 
 if [ "$BJ_DETECTED" = true ]; then
-    echo "  Layered mode: BJ's safety hooks stay. Adding Syndicate's self-dispatch additively."
-    register_sessionstart
+    echo "  Layered mode: BJ's safety hooks stay. Syndicate does NOT touch"
+    echo "  ~/.claude/settings.json (BJ's shared file). Enable self-dispatch"
+    echo "  PER-REPO instead:"
+    echo ""
+    echo "      cd <your repo> && syndicate-activate"
+    echo ""
+    echo "  That writes ./.claude/settings.local.json (Claude Code's git-ignored"
+    echo "  personal layer) and leaves BJ's settings untouched. Run it once per"
+    echo "  repo where you want the crew to auto-dispatch."
     echo "  ○ Safety gates (test/secrets/prod) come from BJ's workflow"
 else
     echo "  Standalone mode: registering Syndicate's own hooks."
-    register_sessionstart
+    register_sessionstart "$SETTINGS_FILE"
     echo "  ✓ session-start-syndicate.sh (self-dispatch doctrine injection)"
     echo "  ✓ session-end-ledger.sh (Ledger live tracking)"
     echo "  ✓ pre-push-test-gate.sh, pre-stage-secrets-gate.sh, godspeed.sh"
