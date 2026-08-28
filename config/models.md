@@ -123,14 +123,17 @@ const (band-name → pinned id):
 
 | Stage | Band | Pinned id |
 |-------|------|-----------|
+| `recall:prime` | haiku | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
 | `gauntlet:test` | sonnet | `us.anthropic.claude-sonnet-4-6` |
 | `hermes:ship` | haiku | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
 | `ledger:record` | sonnet | `us.anthropic.claude-sonnet-4-6` |
 
-Reasoning / blast-radius stages (`scribe:recraft`, `forge:implement`, `athena:review`,
-and the `recall` pre-stage) are intentionally **left on the default (Opus)** — do not
-downshift them. Each downshifted stage also sets `agentType` (persona) and `log()`s its
-intended model so the transcript shows the tier.
+`recall:prime` is a mechanical shell-out (run recall.sh, return stdout verbatim), so it is
+downshifted to haiku in every workflow that has it (#22). Reasoning / blast-radius stages
+(`scribe:recraft`, `forge:implement`, `athena:review`, `specter`, `loki`, `odin:decompose`)
+are intentionally **left on the default (Opus)** — do not downshift them. Each downshifted
+stage also sets `agentType` (persona) and `log()`s its intended model so the transcript
+shows the tier.
 
 **Rules:**
 - Prefer the band name / `agentType` over hardcoded ids (`model: BAND.sonnet`, not a raw
@@ -138,6 +141,28 @@ intended model so the transcript shows the tier.
 - Every `model:` **string literal** under `workflows/*.js` must be one of the 4 pinned
   ids — enforced by `scripts/ci/validate.sh` (fails CI otherwise, closing the
   400-on-unpinned-id door).
+
+## Main-loop / Agent-tool spawns (#44)
+
+When the MAIN LOOP (or any ad-hoc dispatch) spawns a specialist via the **Agent tool**, it
+must pass the `model` override so mechanical/formula work does NOT inherit Opus 4.8:
+
+| Spawn tier | agents | Agent-tool `model` |
+|-----------|--------|--------------------|
+| mechanical | hermes, cipher, herald | `haiku` |
+| formula | gauntlet, ledger | `sonnet` |
+| think | odin, muse, scribe, forge, athena, specter, loki, safecracker, titan | *(omit → inherits Opus)* |
+
+CRITICAL: the Agent tool's `model` takes an **enum** (`haiku`/`sonnet`/`opus`/`fable`) and
+the harness maps it to the pinned id. Do NOT pass a raw Bedrock id here — a raw
+`sonnet-4-5[1m]` string 400'd (the finding behind #44). (Workflow `agent()` calls are the
+other surface: they take a pinned-id literal via `BAND`, enforced by validate.sh.) Either
+way: never an unpinned id.
+
+Caveat: a `haiku`/`sonnet` override only cuts **dollars** once the pin set actually includes
+that tier — until the operator re-pin, `haiku` still resolves to Opus 4.8. Passing it is
+correct regardless (right tier, honest transcript) and starts saving the moment the re-pin
+lands. It saves **context** immediately either way.
 
 **COVERAGE BOUNDARY:** This only covers **workflow-internal mechanical stages**. Ad-hoc
 **main-loop** spawns (e.g. `general-purpose` / `Explore` subagents) still inherit

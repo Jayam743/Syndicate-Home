@@ -40,6 +40,14 @@ a full investigation/build/review inline on 4.8, STOP and route it.
 This is tracked: `/retro` runs `cost-report.sh` and logs the Opus-4.8 % to the cost
 ledger. The number should trend DOWN as this discipline holds. See [[loki-review]].
 
+**Downshift the spawn, not just the work (#44):** when you DO spawn a mechanical
+(hermes/cipher/herald) or formula (gauntlet/ledger) agent via the Agent tool, pass the
+`model` override — `haiku` for mechanical, `sonnet` for formula (the ENUM, never a raw
+Bedrock id). Delegating a mechanical task to an agent that then inherits Opus 4.8 saves
+context but not dollars. Think-tier agents (forge/athena/specter/loki/…) omit the override
+(they should be on Opus). Full mapping: `config/models.md` → "Main-loop / Agent-tool
+spawns". (Cuts $ once haiku is re-pinned; saves context immediately regardless.)
+
 ## Activation
 
 Self-dispatch turns on when either happens:
@@ -329,7 +337,10 @@ Everything else → log a concern, continue. "I'm not sure" is not a stop condit
 
 1. Was this substantial? → if so, did I recraft via Scribe BEFORE classifying?
    (This is the one that gets skipped. If you dispatched a raw multi-part prompt
-   straight to agents, you skipped Step 0.5 — that's the bug.)
+   straight to agents, you skipped Step 0.5 — that's the bug.) A UserPromptSubmit
+   preflight hook (`user-prompt-preflight.sh`, #43) now injects a reminder on
+   substantial prompts so the Scribe (0.5) AND recall (1.5) decisions get STATED,
+   not silently skipped — the main-loop analogue of the workflows' #4 precondition.
 2. Did I classify, or did I just start doing? → classify first
 2.5. **Am I about to do heavy work (a full investigation / multi-file build /
    review) MYSELF on Opus 4.8?** → STOP. Spawn the agent or workflow. Doing it

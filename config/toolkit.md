@@ -94,6 +94,12 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 
 Hooks fire based on lifecycle events. Agents should expect their behavior.
 
+### UserPromptSubmit (fires when the user sends a message)
+
+| Hook | What It Does | Agent Impact |
+|------|-------------|--------------|
+| `user-prompt-preflight.sh` | On a **substantial** prompt, injects a reminder to STATE the Scribe (Step 0.5) + recall (Step 1.5) decision (and Decision-review disposition if wiring) | Main loop: surfaces the two most-skipped steps so a skip is a declaration, not silence (#43). Silent on trivial/slash/short prompts. |
+
 ### PreToolUse (fires before tool execution)
 
 | Hook | What It Does | Agent Impact |
