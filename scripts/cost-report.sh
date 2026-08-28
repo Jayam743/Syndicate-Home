@@ -14,12 +14,14 @@
 #   cost-report.sh --append "label"     # also append a dated line to the cost ledger
 #   cost-report.sh --kind build|operate # tag session kind in ledger line
 #
-# Rates are per MILLION tokens (Bedrock ~ first-party).
-# NOTE: The flat rate table previously overshot ~2x on high-cache sessions because
-# it treated all cache tokens as cache-write (1.25x input). Now split into:
-#   cache_read  ~ 0.1x input rate
-#   cache_write ~ 1.25x input rate
-# The [1m] 1M-context premium is also accounted for (1.25x base rates).
+# Rates are per MILLION tokens — AWS Bedrock ON-DEMAND LIST (verified vs console).
+#   cache_read  = 0.1x input rate ;  cache_write(5m) = 1.25x input rate.
+# There is NO 1M-context premium on Bedrock (the [1m] 1.25x premium was removed).
+# IMPORTANT: on-demand list is an UPPER BOUND. Actual billed cost on a committed-use
+# / EDP plan is much lower — apply BEDROCK_COST_FACTOR (default 0.53, calibrated
+# 2026-08-27 from Cost Explorer: $28.58 actual / $54.10 list = 0.53). The report
+# prints BOTH the on-demand list and the est. actual. The Opus-% delegation metric
+# is a RATIO, so the factor never affects it.
 #
 # READ-ONLY except the optional cost-ledger append.
 
@@ -32,6 +34,14 @@ PROJECT=""
 APPEND_LABEL=""
 NOW=""
 KIND=""
+
+# Effective-cost factor: ACTUAL Bedrock bill as a fraction of on-demand LIST.
+# Calibrated 2026-08-27 from AWS Cost Explorer: $28.58 actual / $54.10 on-demand
+# list (a [1m] session, premium removed) = 0.53 — committed-use/EDP discount.
+# Override per-run with env BEDROCK_COST_FACTOR; set to 1.0 for pure on-demand list.
+# One data point — refine as more (actual/list) pairs are gathered; may vary by
+# model/usage-tier. The Opus-% delegation metric is a RATIO, so this never affects it.
+COST_FACTOR="${BEDROCK_COST_FACTOR:-0.53}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -66,12 +76,14 @@ command -v jq >/dev/null 2>&1 || { echo "cost-report: jq required" >&2; exit 1; 
 
 # Per-model $/MTok rates: input | output | cache_read | cache_write(5m).
 # Matched by substring on the model id (Bedrock ids carry version suffixes).
-# [1m] suffix = 1M-context premium at 1.25x base rates.
+# Verified 2026-08-27 against the AWS Bedrock console pricing tables (exact match:
+# opus 5/25/0.5/6.25, sonnet 3/15/0.3/3.75, haiku 1/5/0.1/1.25).
+# NO [1m]/1M-context premium: the Bedrock tables list ONE rate per model regardless
+# of context window, so [1m] model ids get the SAME base rate (the previous 1.25x
+# [1m] premium was a phantom over-count and has been removed).
 rate() { # $1=model-id  -> echoes "in out cread cwrite"
   case "$1" in
-    *opus*\[1m\]*)  echo "6.25 31.25 0.625 7.8125" ;;
     *opus*)         echo "5 25 0.5 6.25" ;;
-    *sonnet*\[1m\]*) echo "3.75 18.75 0.375 4.6875" ;;
     *sonnet*)       echo "3 15 0.3 3.75" ;;
     *haiku*)        echo "1 5 0.1 1.25" ;;
     *)              echo "5 25 0.5 6.25" ;;  # unknown -> assume Opus (conservative)
@@ -153,10 +165,16 @@ done <<< "$SUMMARY"
 
 echo "-------------------------------------------------------------------------"
 PCT="$(awk -v a="$OPUS_TOTAL" -v t="$TOTAL" 'BEGIN{ if(t>0) printf "%.0f", (a/t)*100; else print 0 }')"
-printf "TOTAL: \$%s   |   Opus (family): \$%s (%s%%)\n" "$TOTAL" "$OPUS_TOTAL" "$PCT"
+# Estimated actual = on-demand LIST x effective factor (see COST_FACTOR above).
+ACT_TOTAL="$(awk -v t="$TOTAL" -v f="$COST_FACTOR" 'BEGIN{printf "%.2f", t*f}')"
+ACT_OPUS="$(awk -v a="$OPUS_TOTAL" -v f="$COST_FACTOR" 'BEGIN{printf "%.2f", a*f}')"
+printf "ON-DEMAND LIST: \$%s   |   Opus (family): \$%s (%s%%)\n" "$TOTAL" "$OPUS_TOTAL" "$PCT"
+printf "EST. ACTUAL (x%s): \$%s   |   Opus (family): \$%s   [override: BEDROCK_COST_FACTOR]\n" "$COST_FACTOR" "$ACT_TOTAL" "$ACT_OPUS"
 echo ""
-echo "Opus family share is the delegation metric — lower over time = the main loop"
-echo "is handing heavy work to cheaper agents instead of doing it itself."
+echo "ON-DEMAND LIST is the honest upper bound; you pay ~${COST_FACTOR}x that on a"
+echo "committed/discounted Bedrock plan (EST. ACTUAL). Opus family share is the"
+echo "delegation metric (a RATIO — unaffected by the factor); lower over time = the"
+echo "main loop is handing heavy work to cheaper agents instead of doing it itself."
 # /retro should only flag Opus-% on 'operate' sessions; build/design sessions are
 # legitimately Opus-heavy and should not trigger delegation warnings.
 
@@ -174,14 +192,16 @@ if [ -n "$APPEND_LABEL" ]; then
       echo "# Syndicate Cost Ledger"
       echo ""
       echo "> Per-session cost, computed from transcripts by cost-report.sh (via /retro)."
-      echo "> Watch the Opus % — it should trend DOWN as delegation discipline improves."
+      echo "> \$ columns are EST. ACTUAL = on-demand list x BEDROCK_COST_FACTOR (default 0.53,"
+      echo "> committed-use discount). Opus % is a ratio (factor-independent). Rows dated before"
+      echo "> 2026-08-27 are raw on-demand list (unfactored). Watch Opus % — it should trend DOWN."
       echo ""
-      echo "| Date | Session | Kind | Total \$ | Opus \$ | Opus % |"
-      echo "|------|---------|------|---------|--------|--------|"
+      echo "| Date | Session | Kind | Actual \$ | Opus \$ | Opus % |"
+      echo "|------|---------|------|----------|--------|--------|"
     } > "$COST_LEDGER"
   fi
   KIND_FIELD="${KIND:-untagged}"
-  echo "| ${NOW} | ${APPEND_LABEL} | ${KIND_FIELD} | \$${TOTAL} | \$${OPUS_TOTAL} | ${PCT}% |" >> "$COST_LEDGER"
+  echo "| ${NOW} | ${APPEND_LABEL} | ${KIND_FIELD} | \$${ACT_TOTAL} | \$${ACT_OPUS} | ${PCT}% |" >> "$COST_LEDGER"
   echo ""
   echo "logged -> ${COST_LEDGER}"
 fi

@@ -75,7 +75,8 @@ make_line "us.anthropic.claude-haiku-4-5-20251001-v1:0" 500 200 > "${PROJ}/${SID
 T1="$(bash "${COST_REPORT}" --transcript "${PROJ}/${SID}.jsonl" 2>&1)"
 
 T1_HEADER="$(echo "$T1" | grep 'Transcript:' || true)"
-T1_TOTAL_LINE="$(echo "$T1"  | grep 'TOTAL:'     || true)"
+T1_TOTAL_LINE="$(echo "$T1"  | grep 'ON-DEMAND LIST:'  || true)"
+T1_ACTUAL_LINE="$(echo "$T1" | grep 'EST. ACTUAL'      || true)"
 
 if [[ "$T1" == *"(+2 subagent files)"* ]]; then
     ok "test1_header_shows_plus2"
@@ -101,11 +102,18 @@ else
     fail "test1_haiku_model_present" "haiku not found in output"
 fi
 
-# TOTAL line must show a nonzero dollar amount (matches $X.XX where X > 0)
-if echo "$T1_TOTAL_LINE" | grep -qE 'TOTAL:[[:space:]]*\$[0-9]*[1-9][0-9]*\.[0-9]+|TOTAL:[[:space:]]*\$[0-9]+\.[0-9]*[1-9]'; then
+# ON-DEMAND LIST line must show a nonzero dollar amount (matches $X.XX where X > 0)
+if echo "$T1_TOTAL_LINE" | grep -qE '\$[0-9]*[1-9][0-9]*\.[0-9]+|\$[0-9]+\.[0-9]*[1-9]'; then
     ok "test1_total_is_nonzero"
 else
     fail "test1_total_is_nonzero" "got: '${T1_TOTAL_LINE}'"
+fi
+
+# EST. ACTUAL line must be present and show a nonzero dollar amount (factor applied)
+if echo "$T1_ACTUAL_LINE" | grep -qE 'EST\. ACTUAL.*\$[0-9]*[1-9][0-9]*\.[0-9]+|EST\. ACTUAL.*\$[0-9]+\.[0-9]*[1-9]'; then
+    ok "test1_est_actual_present"
+else
+    fail "test1_est_actual_present" "got: '${T1_ACTUAL_LINE}'"
 fi
 
 if [[ "$T1" != *"No subagent transcripts found"* ]]; then
