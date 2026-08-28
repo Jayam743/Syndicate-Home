@@ -52,6 +52,7 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 |-------|-------------|----------------------|
 | `/syndicate` | ACTIVATE self-dispatch (run after /engage) — after this, just talk and it routes through Odin | You (entry point) |
 | `/recall` | Pull 2-3 relevant recent sessions + repo merge history before troubleshooting/building | Odin (auto for investigate/goal-seek/code-change/review) |
+| `/continue` | Resume unfinished work from a prior session — pipeline state + resume-state memory + recall, reconciled vs git; the resume front-door | You / Odin (say "continue") |
 | `/retro` | Session retrospective — run at END; computes per-model cost, audits, auto-logs to Loki | You (end of session) |
 | `/loki-review` | Month-end self-improvement — review logged findings, sort done-vs-open, spot patterns, brainstorm, sync to repo | You (month-end) |
 | `/muse` | Conception — shape a fuzzy idea into designed intent before building | Odin (routes to Muse) |

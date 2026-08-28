@@ -50,6 +50,22 @@ The canonical flow is: `/engage` (BJ's workflow loads) → `/syndicate` (this la
 on top) → the user just talks. Once active, this doctrine governs every turn until
 the user says "stand down Syndicate".
 
+## Resuming a prior session ("continue")
+
+If the user says **"continue"** (or runs `/continue`) at the start of a session, invoke
+the **`/continue`** skill FIRST — it is the resume front-door. It reconstructs prior state
+(pipeline `current.json` + the resume-state memory + recall), reconciles against git
+(fetch before trusting a stale "PR open" note), summarizes done/next/blockers, and hands
+you the exact next step — which you then route normally. Do NOT restart from scratch or
+re-litigate locked decisions the resume state records.
+
+Conversely, when a session PAUSES with work left ("do that tomorrow", "let's stop here")
+or ends mid-task, WRITE the resume state so `/continue` has something to load next time:
+a resume-state memory (`type: project` — what's done / the exact next step / locked
+decisions, indexed in `MEMORY.md`), or — if mid-pipeline — the already-persisted
+`~/.syndicate/pipelines/current.json`. This close-the-loop write is what makes "continue"
+actually resume instead of starting cold.
+
 ## Step 0: Should Syndicate even engage?
 
 Skip the doctrine (just answer/act directly) when the request is:
