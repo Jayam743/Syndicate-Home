@@ -174,6 +174,43 @@ else
 fi
 
 # ===================================================================
+# TEST 4: --per-subagent breakdown (label from attributionAgent + tool count)
+# ===================================================================
+echo ""
+echo "--- Test 4: --per-subagent table ---"
+
+PS_SID="session-persub"
+mkdir -p "${PROJ}/${PS_SID}/subagents"
+make_line "us.anthropic.claude-opus-4-8" 1000 500 > "${PROJ}/${PS_SID}.jsonl"
+{
+  printf '{"attributionAgent":"forge","type":"assistant","message":{"model":"us.anthropic.claude-opus-4-8","usage":{"input_tokens":900,"output_tokens":400,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}\n'
+  printf '{"type":"tool_use"}\n'
+  printf '{"type":"tool_use"}\n'
+} > "${PROJ}/${PS_SID}/subagents/agent-forge1.jsonl"
+
+T4="$(bash "${COST_REPORT}" --transcript "${PROJ}/${PS_SID}.jsonl" --per-subagent 2>&1)"
+
+if [[ "$T4" == *"PER-SUBAGENT"* ]]; then
+    ok "test4_persub_header"
+else
+    fail "test4_persub_header" "no PER-SUBAGENT section; output: $T4"
+fi
+
+T4_ROW="$(echo "$T4" | sed -n '/PER-SUBAGENT/,$p' | grep 'forge' || true)"
+if [[ -n "$T4_ROW" ]]; then
+    ok "test4_persub_label"
+else
+    fail "test4_persub_label" "forge label not in per-subagent table; output: $T4"
+fi
+
+# tool-count column must show 2 (the two tool_use lines) for the forge row
+if echo "$T4_ROW" | grep -qE '(^|[[:space:]])2([[:space:]]|$)'; then
+    ok "test4_persub_toolcount"
+else
+    fail "test4_persub_toolcount" "expected tools=2 in row: '${T4_ROW}'"
+fi
+
+# ===================================================================
 # Summary
 # ===================================================================
 TOTAL=$((PASS + FAIL))

@@ -30,10 +30,10 @@ happened and stop.
 
 ## The report (only if there's real activity)
 
-This is a **read-only audit** — do not edit project files, commit, or push. (Two
-exceptions, both the skill's own bookkeeping, not changes to the user's project:
-step 1 appends a cost line via `cost-report.sh`, and step 6 appends findings via
-`loki-log.sh`.) Route per the
+This is a **read-only audit of the project** — do not edit project files, commit, or
+push. (Three exceptions, all the skill's own bookkeeping / durable state, not changes to
+the user's project: §1 appends a cost line via `cost-report.sh`, §6 may capture a new
+operating rule to a memory file, and §7 appends findings via `loki-log.sh`.) Route per the
 doctrine: Ledger owns accounting, Odin owns routing facts, Loki owns critique.
 
 Be HONEST about uncertainty. If a number or model is not available to you, say
@@ -43,18 +43,27 @@ Be HONEST about uncertainty. If a number or model is not available to you, say
 - **Run the cost report** — the transcript records usage + model per message, so we
   compute cost ourselves (and get a per-MODEL breakdown `/cost` can't):
   ```
-  ~/.syndicate/scripts/cost-report.sh --append "<short session label>" --date <YYYY-MM-DD>
+  ~/.syndicate/scripts/cost-report.sh --per-subagent --append "<short session label>" --date <YYYY-MM-DD>
   ```
-  This prints total $, the per-model table, and the **Opus 4.8 % — the delegation
-  metric** — and appends a dated line to `~/.syndicate/ledger/costs.md` for trend
-  tracking. Show the user the total and the Opus-4.8 share.
-- **Interpret the Opus-4.8 %:** high (>70%) means the main loop did heavy work itself
+  This ALWAYS prints, and you MUST show the user, ALL of:
+  - the **per-model table** (out-tok / in+cache / cost);
+  - the **ON-DEMAND LIST** total (honest upper bound) AND the **EST. ACTUAL** total
+    (list × `BEDROCK_COST_FACTOR`, the committed-use discount — this is the number that
+    approximates the real AWS bill);
+  - the **Opus-family % — the delegation metric** (a RATIO, unaffected by the factor);
+  - the **per-subagent table** (from `--per-subagent`): agent · model · out-tok ·
+    in+cache · tools · est-cost.
+  It appends the est-actual line to `~/.syndicate/ledger/costs.md` for trend tracking.
+- **Interpret the Opus-family %:** high (>70%) means the main loop did heavy work itself
   instead of delegating — flag it as a Cost Directive finding in §4. Low means
   delegation discipline is holding.
 - `/cost` (client-side) is the harness's own tally if the user wants to cross-check;
   the model can't see its output, so cost-report.sh is the model-visible source.
-- Per-subagent breakdown: a table of every subagent spawned — label/task, tokens,
-  tool-uses — using the completion/usage numbers reported to you in-session.
+- **The per-subagent table is REQUIRED** and comes from `--per-subagent` (above), which
+  reads the subagent transcripts DIRECTLY — authoritative, not from memory. Always render
+  it. Watch the `model` column: a mechanical agent (hermes/cipher/herald) or a formula
+  agent (gauntlet/ledger) showing `opus-4-8` instead of its tier is cost **tier-drift**
+  (the pins aren't effective / no per-spawn override) → flag in §4.
 
 ### 2. Models used (Ledger + Odin)
 - Main session model (from the environment block — this is known, not inferred).
@@ -84,7 +93,26 @@ Be HONEST about uncertainty. If a number or model is not available to you, say
 ### 5. Recommendations (Loki)
 - Concrete, ranked improvements. Name the file/doctrine section and the exact change.
 
-### 6. Auto-log to Loki (ALWAYS — not optional)
+### 6. Rules in force — snapshot + persist the operating rules
+
+The user establishes operating rules mid-session ("run wiring decisions through
+Loki→Athena → future-harm"; "Muse/design-first for fuzzy ideas"; Loki-first choice
+ordering; "don't install this cycle"; etc.). These MUST persist so a fresh session
+already knows them without re-teaching. Do BOTH:
+
+1. **Snapshot** the rules currently in force and show them in the report (one line each:
+   the rule + where it's recorded). Sources:
+   - the user's memory rules — read `MEMORY.md` and the `feedback`/`project` memory files
+     (e.g. `[[decision-review-protocol]]`);
+   - the doctrine decision-triggers + Loki-first ordering (`config/doctrine.md`);
+   - the Godspeed state (`~/.syndicate/.godspeed`) and the absolute gates (prod/secrets/precheck).
+2. **Capture any NEW rule** the user stated THIS session that is not yet a memory: write it
+   as a `feedback`-type memory (name / description / **Why** / **How to apply**) and add its
+   `MEMORY.md` index line — the SAME way the decision-review rule was captured. This memory
+   write is the persistence mechanism (not a project edit), so it is allowed here. If every
+   stated rule is already recorded, say "no new rules to capture."
+
+### 7. Auto-log to Loki (ALWAYS — not optional)
 After presenting the report, log EVERY finding from section 4/5 to Loki's improvement
 log. This is automatic — do NOT ask "should I log this?". Loki is a self-sharpening
 engine; it only sharpens if findings are recorded. For each finding run:
@@ -125,6 +153,7 @@ the `retrospective` classification.)
 
 ## Output
 
-The report is text only. The ONLY file write is step 6 (appending findings to
-`~/.syndicate/loki/YYYY-MM.md` via `loki-log.sh`) — that's automatic and required.
-Do not write anything else (no project edits, no repo commits) unless the user asks.
+The report is text only. The permitted writes are: §1's cost-ledger append, §6's
+optional new-rule memory capture, and §7's required `loki-log.sh` findings append (to
+`~/.syndicate/loki/YYYY-MM.md`). Do not write anything else (no project edits, no repo
+commits) unless the user asks.

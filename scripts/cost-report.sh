@@ -34,6 +34,7 @@ PROJECT=""
 APPEND_LABEL=""
 NOW=""
 KIND=""
+PER_SUBAGENT=""
 
 # Effective-cost factor: ACTUAL Bedrock bill as a fraction of on-demand LIST.
 # Calibrated 2026-08-27 from AWS Cost Explorer: $28.58 actual / $54.10 on-demand
@@ -50,6 +51,7 @@ while [[ $# -gt 0 ]]; do
     --append) APPEND_LABEL="$2"; shift 2 ;;
     --date) NOW="$2"; shift 2 ;;
     --kind) KIND="$2"; shift 2 ;;
+    --per-subagent) PER_SUBAGENT=1; shift ;;
     *) shift ;;
   esac
 done
@@ -181,6 +183,38 @@ echo "main loop is handing heavy work to cheaper agents instead of doing it itse
 if [ -n "$SUBAGENT_NOTE" ]; then
   echo ""
   echo "$SUBAGENT_NOTE"
+fi
+
+# Optional per-subagent breakdown (--per-subagent): one row per subagent transcript
+# — agent label (attributionAgent), model it ACTUALLY ran on (surfaces tier drift),
+# tokens, tool_uses, and est. actual cost. Sorted by cost descending.
+if [ -n "$PER_SUBAGENT" ] && [ "${#TRANSCRIPTS[@]}" -gt 1 ]; then
+  echo ""
+  echo "=== PER-SUBAGENT (est. actual, x${COST_FACTOR}) ==="
+  printf "%-20s %-14s %10s %10s %6s %8s\n" "agent" "model" "out-tok" "in+cache" "tools" "cost \$"
+  echo "-------------------------------------------------------------------------------"
+  {
+    for f in "${TRANSCRIPTS[@]:1}"; do
+      [ -f "$f" ] || continue
+      lbl="$(jq -rs '[.[]|.attributionAgent]|map(select(.!=null))|first // "unknown"' "$f" 2>/dev/null)"
+      mdl="$(jq -rs '[.[]|select(.type=="assistant")|.message.model]|map(select(.!=null))|first // "?"' "$f" 2>/dev/null)"
+      read -r si so scr scw <<< "$(jq -rs '
+        [ .[]|select(.type=="assistant")|.message|select(.usage!=null)
+          | {i:(.usage.input_tokens//0),o:(.usage.output_tokens//0),
+             r:(.usage.cache_read_input_tokens//0),w:(.usage.cache_creation_input_tokens//0)} ]
+        | "\([.[].i]|add // 0) \([.[].o]|add // 0) \([.[].r]|add // 0) \([.[].w]|add // 0)"' "$f" 2>/dev/null)"
+      si=${si:-0}; so=${so:-0}; scr=${scr:-0}; scw=${scw:-0}
+      tools="$(grep -c '"type":"tool_use"' "$f" 2>/dev/null || true)"; tools=${tools:-0}
+      read -r ri ro rcr rcw <<< "$(rate "$mdl")"
+      cost="$(awk -v i="$si" -v o="$so" -v c="$scr" -v w="$scw" -v ri="$ri" -v ro="$ro" -v rcr="$rcr" -v rcw="$rcw" -v f="$COST_FACTOR" \
+              'BEGIN{printf "%.2f", ((i*ri + o*ro + c*rcr + w*rcw)/1000000)*f}')"
+      incache=$((si + scr + scw))
+      short="$(echo "$mdl" | sed 's/.*claude-//; s/-v1.*//; s/-2025.*//')"
+      printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$cost" "$lbl" "$short" "$so" "$incache" "$tools"
+    done
+  } | sort -t"$(printf '\t')" -k1 -rn | while IFS="$(printf '\t')" read -r cost lbl short so incache tools; do
+      printf "%-20s %-14s %10s %10s %6s %8s\n" "$lbl" "$short" "$so" "$incache" "$tools" "$cost"
+    done
 fi
 
 # Optional: append a dated line to the cost ledger for trend tracking
