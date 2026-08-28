@@ -70,6 +70,7 @@ if (args.skipRecall) {
     {
       label: 'recall:prime',
       phase: 'Scope',
+      model: 'us.anthropic.claude-haiku-4-5-20251001-v1:0', // cost-tier (#22): mechanical shell-out
       schema: {
         type: 'object',
         properties: { brief: { type: 'string' }, matched: { type: 'boolean' } },

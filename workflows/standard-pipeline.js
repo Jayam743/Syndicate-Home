@@ -15,6 +15,11 @@ export const meta = {
 // Only the mechanical workflow stages are downshifted off the default (Opus 4.8);
 // reasoning / blast-radius stages inherit the main-loop model. validate.sh enforces
 // that every model: literal here is one of the 4 pinned ids.
+// NOTE (#22): an agent's .md `tier:`/`model:` frontmatter applies to Agent-TOOL
+// spawns, NOT to workflow agent() stages — a workflow stage's tier is whatever
+// opts.model it sets here (else it inherits the main-loop model). So reasoning
+// stages inheriting Opus is BY DESIGN (correct think-tier); mechanical stages
+// (recall / gauntlet / hermes / ledger) must pin explicitly, as below.
 const BAND = {
   opus: 'us.anthropic.claude-opus-4-8',
   sonnet: 'us.anthropic.claude-sonnet-4-6',
@@ -75,6 +80,7 @@ if (args.skipRecall) {
     {
       label: 'recall:prime',
       phase: 'Craft',
+      model: BAND.haiku, // cost-tier (#22): recall is a mechanical shell-out (run recall.sh, return stdout)
       schema: {
         type: 'object',
         properties: { brief: { type: 'string' }, matched: { type: 'boolean' } },
