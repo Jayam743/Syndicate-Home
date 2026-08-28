@@ -107,7 +107,6 @@ Hooks fire based on lifecycle events. Agents should expect their behavior.
 | Hook | What It Does | Agent Impact |
 |------|-------------|--------------|
 | `post-tool-test-sentinel.sh` | Creates the per-worktree sentinel when tests pass | Gauntlet's test runs unlock Hermes's push (same worktree only) |
-| `post-tool-context-tracker.sh` | Tracks Skill/ToolSearch invocations | Context awareness for nerf budget |
 
 ### Stop Hooks (can BLOCK the agent mid-action)
 

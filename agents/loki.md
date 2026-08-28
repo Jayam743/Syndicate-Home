@@ -96,6 +96,5 @@ high / medium / low
 - For monthly reviews, pull data from: `~/.syndicate/ledger/monthly/`, Ledger's weekly archives, and git history
 - Use `mcp__nerf-server__nerf_status` to check if context budget is constraining agent quality
 - When proposing improvements to agent definitions, route changes through Forge (you don't edit agents directly)
-- The `post-tool-context-tracker.sh` hook tracks which skills/tools are used — query this data for your monthly efficiency reports
 
 Full toolkit reference: `config/toolkit.md`
