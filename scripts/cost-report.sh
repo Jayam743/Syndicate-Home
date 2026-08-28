@@ -61,8 +61,12 @@ if [ -z "$TRANSCRIPT" ]; then
   if [ -n "$PROJECT" ]; then
     dir="${PROJECTS}/${PROJECT}"
   else
-    # slugify cwd the way Claude Code does: / -> -
-    slug="$(pwd | sed 's#/#-#g')"
+    # slugify the way Claude Code does (/ -> -), but anchor on the git repo TOPLEVEL
+    # rather than raw $pwd (issue #35): a cwd that has drifted into a subdir of the
+    # repo would otherwise slugify to a non-existent project dir and mis-resolve. Fall
+    # back to $pwd when not in a git repo.
+    base="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    slug="$(printf '%s' "$base" | sed 's#/#-#g')"
     dir="${PROJECTS}/${slug}"
     [ -d "$dir" ] || dir="$(ls -dt "${PROJECTS}"/*/ 2>/dev/null | head -1)"
   fi
