@@ -36,13 +36,17 @@ NOW=""
 KIND=""
 PER_SUBAGENT=""
 
-# Effective-cost factor: ACTUAL Bedrock bill as a fraction of on-demand LIST.
-# Calibrated 2026-08-27 from AWS Cost Explorer: $28.58 actual / $54.10 on-demand
-# list (a [1m] session, premium removed) = 0.53 — committed-use/EDP discount.
-# Override per-run with env BEDROCK_COST_FACTOR; set to 1.0 for pure on-demand list.
-# One data point — refine as more (actual/list) pairs are gathered; may vary by
-# model/usage-tier. The Opus-% delegation metric is a RATIO, so this never affects it.
-COST_FACTOR="${BEDROCK_COST_FACTOR:-0.53}"
+# Effective-cost factor: ACTUAL Bedrock bill as a fraction of on-demand LIST — a
+# committed-use/EDP discount. It is NOT perfectly flat: sessions with different
+# output/cache mixes discount slightly differently, so EST. ACTUAL is an APPROXIMATION
+# (treat as ±~10%), NEVER a precise bill. Calibrated from AWS Cost Explorer actuals:
+#   2026-08-27   $28.58 / $54.10  = 0.528   ([1m] session, premium removed)
+#   2026-08-31   $50.55 / $107.93 = 0.468
+#   token-weighted across both   = 79.13 / 162.03 = 0.488  -> default 0.49
+# Add more (actual/list) pairs over time and re-weight the default. Override per-run
+# with env BEDROCK_COST_FACTOR; 1.0 = pure on-demand list. The Opus-% delegation
+# metric is a RATIO, so this factor never affects it.
+COST_FACTOR="${BEDROCK_COST_FACTOR:-0.49}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -175,12 +179,13 @@ PCT="$(awk -v a="$OPUS_TOTAL" -v t="$TOTAL" 'BEGIN{ if(t>0) printf "%.0f", (a/t)
 ACT_TOTAL="$(awk -v t="$TOTAL" -v f="$COST_FACTOR" 'BEGIN{printf "%.2f", t*f}')"
 ACT_OPUS="$(awk -v a="$OPUS_TOTAL" -v f="$COST_FACTOR" 'BEGIN{printf "%.2f", a*f}')"
 printf "ON-DEMAND LIST: \$%s   |   Opus (family): \$%s (%s%%)\n" "$TOTAL" "$OPUS_TOTAL" "$PCT"
-printf "EST. ACTUAL (x%s): \$%s   |   Opus (family): \$%s   [override: BEDROCK_COST_FACTOR]\n" "$COST_FACTOR" "$ACT_TOTAL" "$ACT_OPUS"
+printf "EST. ACTUAL (~x%s, ±~10%%): \$%s   |   Opus (family): \$%s   [override: BEDROCK_COST_FACTOR]\n" "$COST_FACTOR" "$ACT_TOTAL" "$ACT_OPUS"
 echo ""
-echo "ON-DEMAND LIST is the honest upper bound; you pay ~${COST_FACTOR}x that on a"
-echo "committed/discounted Bedrock plan (EST. ACTUAL). Opus family share is the"
-echo "delegation metric (a RATIO — unaffected by the factor); lower over time = the"
-echo "main loop is handing heavy work to cheaper agents instead of doing it itself."
+echo "ON-DEMAND LIST is the honest upper bound. EST. ACTUAL applies a committed-use"
+echo "discount factor (~${COST_FACTOR}x) calibrated from AWS Cost Explorer actuals — it is an"
+echo "APPROXIMATION (±~10%, small sample), NOT a precise bill; don't over-trust the digits."
+echo "Opus family share is the delegation metric (a RATIO — unaffected by the factor);"
+echo "lower over time = the main loop is handing heavy work to cheaper agents."
 # /retro should only flag Opus-% on 'operate' sessions; build/design sessions are
 # legitimately Opus-heavy and should not trigger delegation warnings.
 
@@ -230,9 +235,9 @@ if [ -n "$APPEND_LABEL" ]; then
       echo "# Syndicate Cost Ledger"
       echo ""
       echo "> Per-session cost, computed from transcripts by cost-report.sh (via /retro)."
-      echo "> \$ columns are EST. ACTUAL = on-demand list x BEDROCK_COST_FACTOR (default 0.53,"
-      echo "> committed-use discount). Opus % is a ratio (factor-independent). Rows dated before"
-      echo "> 2026-08-27 are raw on-demand list (unfactored). Watch Opus % — it should trend DOWN."
+      echo "> \$ columns are EST. ACTUAL ≈ on-demand list x BEDROCK_COST_FACTOR (default 0.49,"
+      echo "> committed-use discount) — an APPROXIMATION (±~10%), not a precise bill. Opus % is a"
+      echo "> ratio (factor-independent). Rows before 2026-08-27 are raw on-demand list (unfactored)."
       echo ""
       echo "| Date | Session | Kind | Actual \$ | Opus \$ | Opus % |"
       echo "|------|---------|------|----------|--------|--------|"
