@@ -69,7 +69,7 @@ echo "--- Test 1: Positive — 2 subagents discovered ---"
 
 make_line "us.anthropic.claude-opus-4-8"               1000 500 > "${PROJ}/${SID}.jsonl"
 mkdir -p "${PROJ}/${SID}/subagents"
-make_line "us.anthropic.claude-sonnet-4-6"              800 300 > "${PROJ}/${SID}/subagents/agent-1.jsonl"
+make_line "us.anthropic.claude-sonnet-5[1m]"           800 300 > "${PROJ}/${SID}/subagents/agent-1.jsonl"
 make_line "us.anthropic.claude-haiku-4-5-20251001-v1:0" 500 200 > "${PROJ}/${SID}/subagents/agent-2.jsonl"
 
 T1="$(bash "${COST_REPORT}" --transcript "${PROJ}/${SID}.jsonl" 2>&1)"

@@ -1,7 +1,7 @@
 ---
 name: odin
-model: us.anthropic.claude-opus-4-8
-fallback_model: us.anthropic.claude-opus-4-7
+model: us.anthropic.claude-opus-4-8[1m]
+fallback_model: none
 tier: think
 description: "The Orchestrator — routes tasks to the right specialist agent. Odin sees the full picture, recrafts prompts via Scribe, and dispatches to the crew."
 tools:

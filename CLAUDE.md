@@ -66,14 +66,14 @@ Agent markdown files live in `agents/`. Each file defines:
 
 | Band | Model | Agents |
 |------|-------|--------|
-| think | opus 4.8 (fallback 4.7) | Odin, Muse, Loki, Specter, Forge, Scribe, Titan, Safecracker |
-| think | opus 4.7 (fallback 4.8) | Athena (review-diversity: different model from writer/router) |
-| formula | sonnet 4.6 (fallback haiku) | Gauntlet, Ledger |
+| think | opus 4.8 `[1m]` (fallback: none — fail loud) | Odin, Muse, Loki, Specter, Forge, Scribe, Titan, Safecracker |
+| think | opus 4.8 `[1m]` primary + Sonnet 5 `[1m]` conditional second-pass | Athena (review-diversity: cross-family second pass on high-stakes/security diffs) |
+| formula | sonnet 5 `[1m]` (fallback haiku) | Gauntlet, Ledger |
 | mechanical | haiku 4.5 (fallback session) | Hermes, Herald, Cipher |
 
 **Fallback rules:**
-- think: opus-4-8 → opus-4-7 → session+WARN (Athena: 4.7 → 4.8 → session+WARN)
-- formula: sonnet-4-6 → haiku-4-5 → session+COST-WARN
+- think: opus-4-8[1m] → NONE (fail loud; no `→ session` no-op — session IS opus-4-8, a dishonest failover). Athena's Sonnet-5 second-pass is a review-workflow behavior, not a frontmatter fallback.
+- formula: sonnet-5[1m] → haiku-4-5 → session+COST-WARN
 - mechanical: haiku-4-5 → session+COST-WARN
 - `session` = Opus 4.8 on this account; formula/mechanical reaching session is a
   cost-increase event — log loudly, never silently

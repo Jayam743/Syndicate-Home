@@ -83,11 +83,13 @@ fi
 echo ""
 echo "--- Pinned-Set + Tier Band Rules ---"
 
-# The 4 pinned model IDs (Bedrock hard limit)
+# The live pinned model IDs (3 live + 1 dead slot). The 4th Bedrock slot (fable) is
+# ORG-BLOCKED and permanently unavailable this session — nothing resolves to it, so it
+# is NOT listed here. Opus/Sonnet are pinned as [1m] profiles ONLY, so their ids MUST
+# carry the [1m] suffix verbatim (bare ids won't resolve). Haiku is 200K ctx — bare.
 PINNED_MODELS=(
-    "us.anthropic.claude-opus-4-8"
-    "us.anthropic.claude-opus-4-7"
-    "us.anthropic.claude-sonnet-4-6"
+    "us.anthropic.claude-opus-4-8[1m]"
+    "us.anthropic.claude-sonnet-5[1m]"
     "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 )
 
@@ -126,9 +128,11 @@ for agent in "${REPO_ROOT}/agents/"*.md; do
         ERRORS=$((ERRORS + 1))
     fi
 
-    # fallback_model: must be one of the 4 pinned IDs OR literal 'session'
-    if [ "$fallback" != "session" ] && ! is_pinned_model "$fallback"; then
-        echo "  FAIL: ${name} — fallback_model '${fallback}' is not in the pinned set and is not 'session'"
+    # fallback_model: must be a pinned ID OR literal 'session' OR literal 'none'.
+    # 'none' is the think-band fail-loud sentinel (Fork D): opus-4-8 -> session would
+    # be a dishonest no-op (session IS opus-4-8), so think agents declare no fallback.
+    if [ "$fallback" != "session" ] && [ "$fallback" != "none" ] && ! is_pinned_model "$fallback"; then
+        echo "  FAIL: ${name} — fallback_model '${fallback}' is not in the pinned set and is not 'session'/'none'"
         ERRORS=$((ERRORS + 1))
     fi
 

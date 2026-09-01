@@ -87,14 +87,14 @@ command -v jq >/dev/null 2>&1 || { echo "cost-report: jq required" >&2; exit 1; 
 # Per-model $/MTok rates: input | output | cache_read | cache_write(5m).
 # Matched by substring on the model id (Bedrock ids carry version suffixes).
 # Verified 2026-08-27 against the AWS Bedrock console pricing tables (exact match:
-# opus 5/25/0.5/6.25, sonnet 3/15/0.3/3.75, haiku 1/5/0.1/1.25).
+# opus 5/25/0.5/6.25, sonnet 2/10/0.2/2.5 (Sonnet 5), haiku 1/5/0.1/1.25).
 # NO [1m]/1M-context premium: the Bedrock tables list ONE rate per model regardless
 # of context window, so [1m] model ids get the SAME base rate (the previous 1.25x
 # [1m] premium was a phantom over-count and has been removed).
 rate() { # $1=model-id  -> echoes "in out cread cwrite"
   case "$1" in
     *opus*)         echo "5 25 0.5 6.25" ;;
-    *sonnet*)       echo "3 15 0.3 3.75" ;;
+    *sonnet*)       echo "2 10 0.2 2.5" ;;   # Sonnet 5 ($2/$10); [1m] >200K surcharge unverified — see models.md Fork C TODO
     *haiku*)        echo "1 5 0.1 1.25" ;;
     *)              echo "5 25 0.5 6.25" ;;  # unknown -> assume Opus (conservative)
   esac

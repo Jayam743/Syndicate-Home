@@ -1,7 +1,7 @@
 ---
 name: specter
-model: us.anthropic.claude-opus-4-8
-fallback_model: us.anthropic.claude-opus-4-7
+model: us.anthropic.claude-opus-4-8[1m]
+fallback_model: none
 tier: think
 description: "The Investigator — diagnoses unknown problems from every angle. Phases through systems, forms hypotheses, stress-tests them, presents solutions with options."
 tools:

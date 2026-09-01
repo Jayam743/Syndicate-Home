@@ -1,7 +1,7 @@
 ---
 name: muse
-model: us.anthropic.claude-opus-4-8
-fallback_model: us.anthropic.claude-opus-4-7
+model: us.anthropic.claude-opus-4-8[1m]
+fallback_model: none
 tier: think
 description: "The Conception Partner — shapes raw ideas into designed intent before any code is written. Challenges, reframes, and keeps an append-only decision ledger. The front-door before Scribe/Forge."
 tools:

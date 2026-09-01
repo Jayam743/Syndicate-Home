@@ -5,32 +5,32 @@
 This account runs on AWS Bedrock with a **hard limit of 4 pinned model slots**.
 Agents are assigned to one of 3 bands; each band maps to a pinned model.
 
-### Pinned set (exactly 4 — Bedrock hard limit)
+### Pinned set (3 live + 1 dead slot)
 
 ```
-opus-4-8   → us.anthropic.claude-opus-4-8
-opus-4-7   → us.anthropic.claude-opus-4-7
-sonnet-4-6 → us.anthropic.claude-sonnet-4-6
-haiku-4-5  → us.anthropic.claude-haiku-4-5-20251001-v1:0
+opus-4-8[1m] → us.anthropic.claude-opus-4-8[1m]                (think band)
+sonnet-5[1m] → us.anthropic.claude-sonnet-5[1m]                (formula band; Athena 2nd-pass)
+haiku-4-5    → us.anthropic.claude-haiku-4-5-20251001-v1:0     (mechanical band; 200K ctx — bare)
+─────────────────────────────────────────────────────────────
+[4th slot]   → fable 5 — ORG-BLOCKED, permanently unavailable this session (DEAD)
 ```
 
-**opus-4-6 was DROPPED from the pin set.** Opus 4.8 covers it at the same $5/$25 rate
-(no cost difference). This freed the 4th slot for Haiku 4.5, which was previously
-falling back to Opus 4.8 (8x cost inversion).
+**CRITICAL — [1m] suffixes are load-bearing.** Only the `[1m]` inference profiles are
+pinned for opus and sonnet, so every agent `model:` id for those bands MUST carry the
+`[1m]` suffix verbatim — a bare `us.anthropic.claude-opus-4-8` will NOT resolve. Haiku
+is 200K-context and has no `[1m]` variant, so it stays bare.
 
-> **REQUIRED OPERATOR ACTION:** Re-pin Bedrock to swap `us.anthropic.claude-opus-4-6-v1`
-> out of the inference-profile set and add `us.anthropic.claude-haiku-4-5-20251001-v1:0`
-> in its place. Until this is done, Haiku agents will continue to resolve to Opus 4.8.
+**opus-4-7 and opus-4-6 are NO LONGER PINNED.** sonnet-4-6 is replaced by sonnet-5.
+Haiku 4.5 is now pinned (no longer inverting to Opus).
 
-### Bug fixed (2026-08-26)
-
-Empirically verified via resolution probes that Haiku 4.5 was falling to Opus 4.8
-(8x cost inversion) because Opus occupied 3 of 4 pin slots (4.8, 4.7, 4.6). Collapsing
-to 2 Opus pins frees the slot for Haiku.
+> **STANDING RE-PIN TODO (Fork B):** The 4th Bedrock slot is currently DEAD — `fable 5`
+> is org-blocked and unavailable this session. No fallback logic may depend on a 4th
+> slot. Revisit if the org unblocks fable, or if a custom pin becomes possible — a live
+> 4th slot could host a distinct reviewer or a specialized model. Until then: 3 live pins.
 
 ## Band Assignments
 
-### THINK band (Opus 4.8, fallback Opus 4.7)
+### THINK band (Opus 4.8 `[1m]`, fallback NONE — fail loud)
 
 Agents whose reasoning errors are subtle and expensive to catch.
 
@@ -44,18 +44,22 @@ Agents whose reasoning errors are subtle and expensive to catch.
 | **Scribe** | infer intent | Recraft quality needs real reasoning |
 | **Titan** | infra ops | Blast-radius: wrong AWS action is costly/irreversible |
 | **Safecracker** | secret ops | Blast-radius: secrets are highest-stakes surface |
-| **Athena** | review/bugs | REVIEW-DIVERSITY exception (see below) |
+| **Athena** | review/bugs | REVIEW-DIVERSITY design (see below) |
 
-**Athena exception:** model=opus-4-7, fallback=opus-4-8. Athena's primary is
-intentionally different from Odin/Loki/Forge so the reviewer sees code with a
-different model's perspective than the one that wrote/routed it. This is the
-"review-diversity" principle.
+**Athena review-diversity (Fork A):** Athena's PRIMARY reviewer is Opus 4.8
+(`us.anthropic.claude-opus-4-8[1m]`, `fallback_model: none`) — the full review gate
+runs there. On **high-stakes or security diffs**, a CONDITIONAL decorrelated
+SECOND-PASS review runs on **Sonnet 5** (`us.anthropic.claude-sonnet-5[1m]`).
 
-> **Opus 4.7's pin is LOAD-BEARING** — it is both the think-band fallback (for all
-> other think agents) AND Athena's review-diversity primary. Do not displace without
-> re-solving review diversity.
+Rationale (recorded): the old opus-4.7-vs-4.8 split was never real review diversity —
+same model family means correlated blind spots ("diversity theater"). Sonnet 5 is a
+genuinely different family, so it is real cross-family decorrelation, and it is cheap
+($2/$10) — we get a second independent set of eyes on the diffs that matter WITHOUT
+downgrading the primary Opus gate. The second pass is a **review-workflow behavior**
+(documented here and in `agents/athena.md`), NOT a frontmatter fallback — think-band
+frontmatter has no fallback (fail loud).
 
-### FORMULA band (Sonnet 4.6, fallback Haiku 4.5)
+### FORMULA band (Sonnet 5 `[1m]`, fallback Haiku 4.5)
 
 Agents doing structured, rule-following work backstopped by think-band agents.
 
@@ -78,15 +82,22 @@ Agents executing pure commands/templates with no reasoning required.
 
 ```
 THINK band:
-  opus-4-8 → opus-4-7 → session + WARN
-  (Athena: opus-4-7 → opus-4-8 → session + WARN)
+  opus-4-8[1m] → NONE (fail loud)
+  (Athena: same — opus-4-8[1m] → NONE; Sonnet-5 2nd-pass is a workflow behavior, not a fallback)
 
 FORMULA band:
-  sonnet-4-6 → haiku-4-5 → session + COST-WARN
+  sonnet-5[1m] → haiku-4-5 → session + COST-WARN
 
 MECHANICAL band:
   haiku-4-5 → session + COST-WARN
 ```
+
+**Fork D — think band fails LOUD, no fallback.** `session` IS Opus 4.8 on this account,
+so an `opus-4-8 → session` failover is a **dishonest no-op** (same model, pretending to
+fail over). Think agents therefore declare `fallback_model: none`: if Opus 4.8 `[1m]` is
+unavailable, fail loud rather than silently "recover" to the identical model. Formula and
+mechanical KEEP real fallbacks because they fall to *genuinely different, cheaper* tiers
+(sonnet-5 → haiku; haiku → session), not no-ops.
 
 **session = Opus 4.8 on this account**, so a formula/mechanical agent reaching
 session is a **COST-INCREASE event** (an acknowledged exception to never-cross-up,
@@ -100,19 +111,23 @@ Every fallback activation is logged for Loki's monthly review:
 - What model was actually used
 - Whether the output quality was acceptable
 
-## Deliberate Trade: 1M-context dropped
+## Deliberate Trade: 1M-context PINNED (reversed)
 
-The `[1m]` 1M-context long-context fallback (previously on Odin/Loki/Muse/Specter/Athena)
-is **dropped** — no 1M variant is pinned. Future long-context tasks must plan around
-this limitation (e.g., chunking, summarization before agent dispatch).
+Previously the `[1m]` 1M-context profiles were dropped. **That trade is now REVERSED:**
+we deliberately pin the `[1m]` profiles for opus and sonnet, buying 1M context (more
+room per session, less pre-dispatch chunking/summarization). Haiku stays bare (200K —
+no `[1m]` variant exists). The cost caveat attached to this is the Fork C `[1m]`
+long-context surcharge note (see Formula band / verification TODO below).
 
 ## Cost Note
 
-All Opus versions (4.7/4.8) are the SAME rate ($5/$25). Choosing between them is a
-capability/diversity choice, not a cost choice. Real rate savings come only from
-dropping to Sonnet ($3/$15, -40%) or Haiku ($1/$5, -80%). The biggest lever of all
-is not making Opus agents run when a cheaper agent (or the workflow) should — see
-[[loki-review]] on delegation discipline.
+Rates (per MTok, input/output): **Opus 4.8 = $5/$25 · Sonnet 5 = $2/$10 · Haiku 4.5 =
+$1/$5** · (Fable 5 = $10/$50, 2×Opus — dead/unused 4th slot). Version does NOT change
+price within a tier — only the tier does (all Opus versions are the same $5/$25). Note
+**Sonnet 5 ($2/$10) is CHEAPER than the old Sonnet 4.6 ($3/$15)** — the formula band got
+both an upgrade and a cost cut. Real rate savings come only from dropping tier
+(Opus → Sonnet → Haiku); the biggest lever of all is not making Opus agents run when a
+cheaper agent (or the workflow) should — see [[loki-review]] on delegation discipline.
 
 ## Workflow agent() model overrides
 
@@ -124,9 +139,9 @@ const (band-name → pinned id):
 | Stage | Band | Pinned id |
 |-------|------|-----------|
 | `recall:prime` | haiku | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
-| `gauntlet:test` | sonnet | `us.anthropic.claude-sonnet-4-6` |
+| `gauntlet:test` | sonnet | `us.anthropic.claude-sonnet-5[1m]` |
 | `hermes:ship` | haiku | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
-| `ledger:record` | sonnet | `us.anthropic.claude-sonnet-4-6` |
+| `ledger:record` | sonnet | `us.anthropic.claude-sonnet-5[1m]` |
 
 `recall:prime` is a mechanical shell-out (run recall.sh, return stdout verbatim), so it is
 downshifted to haiku in every workflow that has it (#22). Reasoning / blast-radius stages
@@ -138,9 +153,9 @@ shows the tier.
 **Rules:**
 - Prefer the band name / `agentType` over hardcoded ids (`model: BAND.sonnet`, not a raw
   string).
-- Every `model:` **string literal** under `workflows/*.js` must be one of the 4 pinned
-  ids — enforced by `scripts/ci/validate.sh` (fails CI otherwise, closing the
-  400-on-unpinned-id door).
+- Every `model:` **string literal** under `workflows/*.js` must be one of the 3 live
+  pinned ids (with the `[1m]` suffix verbatim for opus/sonnet) — enforced by
+  `scripts/ci/validate.sh` (fails CI otherwise, closing the 400-on-unpinned-id door).
 
 ## Main-loop / Agent-tool spawns (#44)
 
@@ -159,10 +174,10 @@ the harness maps it to the pinned id. Do NOT pass a raw Bedrock id here — a ra
 other surface: they take a pinned-id literal via `BAND`, enforced by validate.sh.) Either
 way: never an unpinned id.
 
-Caveat: a `haiku`/`sonnet` override only cuts **dollars** once the pin set actually includes
-that tier — until the operator re-pin, `haiku` still resolves to Opus 4.8. Passing it is
-correct regardless (right tier, honest transcript) and starts saving the moment the re-pin
-lands. It saves **context** immediately either way.
+Note: `haiku` and `sonnet` are now live pins, so a `haiku`/`sonnet` override cuts
+**dollars immediately** (haiku → $1/$5, sonnet-5 → $2/$10) as well as context. The
+enum maps to the pinned id, so no id change is needed here — the `sonnet` enum resolves
+to `us.anthropic.claude-sonnet-5[1m]` via the harness.
 
 **COVERAGE BOUNDARY:** This only covers **workflow-internal mechanical stages**. Ad-hoc
 **main-loop** spawns (e.g. `general-purpose` / `Explore` subagents) still inherit
@@ -172,9 +187,8 @@ Directive on delegation discipline. Issue #13 is **not** "the fix for 100%-Opus.
 ## Bedrock Model IDs (inference-profile form)
 
 ```
-opus 4.8   → us.anthropic.claude-opus-4-8
-opus 4.7   → us.anthropic.claude-opus-4-7
-sonnet 4.6 → us.anthropic.claude-sonnet-4-6
+opus 4.8   → us.anthropic.claude-opus-4-8[1m]
+sonnet 5   → us.anthropic.claude-sonnet-5[1m]
 haiku 4.5  → us.anthropic.claude-haiku-4-5-20251001-v1:0
 ```
 
@@ -188,8 +202,16 @@ for this limitation.
 opus/sonnet 5. If porting Syndicate to a non-Bedrock (direct Anthropic API) setup,
 switch to plain IDs (`claude-opus-4-8`, etc.).
 
-## Future Consideration
+## Formula-band model decision (Fork C — DECIDED)
 
-Sonnet 5 is a possible upgrade for the formula band PENDING rate verification. Do not
-pin an unknown-rate model into the cost-control band without confirming it stays at or
-below the $3/$15 Sonnet rate.
+**Sonnet 5 is the formula-band model.** Its base rate ($2/$10) clears the old $3/$15
+Sonnet 4.6 ceiling — this is an upgrade AND a cost cut, so the cost-control-band
+constraint is satisfied.
+
+**CAVEAT / VERIFICATION TODO:** The Bedrock `[1m]` >200K long-context surcharge for
+`sonnet-5[1m]` was **NOT machine-verified this session**. First-party (direct Anthropic)
+lists 1M context as native/flat, and `opus-4-8[1m]` is already cost-verified — but the
+Sonnet-5 `[1m]` line has not been confirmed in the AWS Bedrock console. **Operator TODO:
+confirm the `sonnet-5[1m]` >200K pricing in the AWS console** and update the Cost Note if
+a long-context surcharge applies. (`cost-report.sh` currently applies one flat rate per
+model family regardless of context window.)

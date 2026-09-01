@@ -21,8 +21,8 @@ export const meta = {
 // stages inheriting Opus is BY DESIGN (correct think-tier); mechanical stages
 // (recall / gauntlet / hermes / ledger) must pin explicitly, as below.
 const BAND = {
-  opus: 'us.anthropic.claude-opus-4-8',
-  sonnet: 'us.anthropic.claude-sonnet-4-6',
+  opus: 'us.anthropic.claude-opus-4-8[1m]',
+  sonnet: 'us.anthropic.claude-sonnet-5[1m]',
   haiku: 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
 }
 

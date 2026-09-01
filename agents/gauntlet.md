@@ -1,6 +1,6 @@
 ---
 name: gauntlet
-model: us.anthropic.claude-sonnet-4-6
+model: us.anthropic.claude-sonnet-5[1m]
 fallback_model: us.anthropic.claude-haiku-4-5-20251001-v1:0
 tier: formula
 description: "The Tester — runs tests, writes tests, validates behavior, stress-tests edge cases."

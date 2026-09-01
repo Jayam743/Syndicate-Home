@@ -1,7 +1,7 @@
 ---
 name: titan
-model: us.anthropic.claude-opus-4-8
-fallback_model: us.anthropic.claude-opus-4-7
+model: us.anthropic.claude-opus-4-8[1m]
+fallback_model: none
 tier: think
 description: "Infrastructure agent — AWS, cloud resources, Terraform, Docker. Holds up the world."
 tools:
