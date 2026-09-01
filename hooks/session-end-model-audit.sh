@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # SessionEnd hook — audits each subagent's model against its intended model.
 #
-# Install: add to ~/.claude/settings.json under "hooks.SessionEnd" (object form).
+# Install: registered under hooks.SessionEnd by `syndicate-activate` — into the repo's
+# .claude/settings.local.json in LAYERED mode (never BJ's global settings.json), or into
+# ~/.claude/settings.json in STANDALONE mode. Do NOT hand-add it to BJ's shared file.
 #
 # What it does:
 # 1. Reads the session transcript_path from the SessionEnd stdin JSON.

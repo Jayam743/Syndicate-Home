@@ -9,7 +9,7 @@
 #
 # Usage:
 #   syndicate-activate                 remove the old global entries, THEN activate this repo
-#   syndicate-activate --remove-global remove ONLY Syndicate's two entries from
+#   syndicate-activate --remove-global remove ONLY Syndicate's own entries from
 #                                      ~/.claude/settings.json (cleanup of the old bug)
 #
 # Idempotent + shellcheck-clean. Read -> jq to tmp -> mv (never redirect into input).
@@ -19,14 +19,24 @@ set -euo pipefail
 SYNDICATE_HOOKS="${HOME}/.syndicate/hooks"
 SS_HOOK="${SYNDICATE_HOOKS}/session-start-syndicate.sh"
 SE_HOOK="${SYNDICATE_HOOKS}/session-end-ledger.sh"
+MA_HOOK="${SYNDICATE_HOOKS}/session-end-model-audit.sh"   # #19 model-drift audit
+PF_HOOK="${SYNDICATE_HOOKS}/user-prompt-preflight.sh"     # #43 Scribe/recall preflight
 
 GLOBAL_SETTINGS="${HOME}/.claude/settings.json"
 LOCAL_SETTINGS=".claude/settings.local.json"
 
-# Trailing path fragments that uniquely identify Syndicate's two entries.
-# basename alone is too broad; a full $HOME path is too brittle (worktrees, moves).
+# Trailing path fragments that uniquely identify Syndicate's OWN entries. basename
+# alone is too broad; a full $HOME path is too brittle (worktrees, moves). These
+# MUST stay in lockstep with the merge_entry list below — if a hook is registered
+# but not listed here, --remove-global / re-activate teardown orphans it (drift).
+# Layered-mode scope (Loki 2026-08-31): only hooks with NO BJ equivalent + no
+# same-event conflict are registered — preflight (BJ has no UserPromptSubmit) and
+# model-audit (Syndicate-specific). Safety gates / test-sentinel / godspeed DEFER
+# to BJ's stack per the coexistence rule.
 F1="/.syndicate/hooks/session-start-syndicate.sh"
 F2="/.syndicate/hooks/session-end-ledger.sh"
+F3="/.syndicate/hooks/session-end-model-audit.sh"
+F4="/.syndicate/hooks/user-prompt-preflight.sh"
 
 MODE="activate"
 case "${1:-}" in
@@ -34,7 +44,7 @@ case "${1:-}" in
     -h|--help)
         echo "Usage: syndicate-activate [--remove-global]"
         echo "  (default)         remove old global entries, then activate this repo (.claude/settings.local.json)"
-        echo "  --remove-global   remove ONLY Syndicate's two entries from ~/.claude/settings.json"
+        echo "  --remove-global   remove ONLY Syndicate's own entries from ~/.claude/settings.json"
         exit 0 ;;
     "") ;;
     *)
@@ -62,8 +72,8 @@ remove_syn_entries() {
         return
     fi
     tmp="$(mktemp)"
-    if jq --arg f1 "$F1" --arg f2 "$F2" '
-        def syn($c): ($c | type == "string") and (($c | endswith($f1)) or ($c | endswith($f2)));
+    if jq --arg f1 "$F1" --arg f2 "$F2" --arg f3 "$F3" --arg f4 "$F4" '
+        def syn($c): ($c | type == "string") and (($c | endswith($f1)) or ($c | endswith($f2)) or ($c | endswith($f3)) or ($c | endswith($f4)));
         if .hooks then
           .hooks |= map_values(
             map(
@@ -126,6 +136,9 @@ mkdir -p "$(dirname "$LOCAL_SETTINGS")"
 [ -f "$LOCAL_SETTINGS" ] || echo '{}' > "$LOCAL_SETTINGS"
 merge_entry "$LOCAL_SETTINGS" "SessionStart" "startup" "$SS_HOOK"
 merge_entry "$LOCAL_SETTINGS" "SessionEnd" "" "$SE_HOOK"
+# Syndicate-specific hooks with NO BJ equivalent (Loki 2026-08-31 layered scope):
+merge_entry "$LOCAL_SETTINGS" "SessionEnd" "" "$MA_HOOK"        # #19 model-drift audit (additive 2nd SessionEnd)
+merge_entry "$LOCAL_SETTINGS" "UserPromptSubmit" "*" "$PF_HOOK" # #43 Scribe/recall preflight (BJ has no UserPromptSubmit)
 echo ""
 
 echo "━━━ Step 3/3: git-ignore ${LOCAL_SETTINGS} ━━━"
