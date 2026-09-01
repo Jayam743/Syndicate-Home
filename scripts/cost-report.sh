@@ -195,7 +195,8 @@ if [ -n "$SUBAGENT_NOTE" ]; then
 fi
 
 # Optional per-subagent breakdown (--per-subagent): one row per subagent transcript
-# — agent label (attributionAgent), model it ACTUALLY ran on (surfaces tier drift),
+# — agent label (attributionAgent, else companion .meta.json agentType), model it
+# ACTUALLY ran on (surfaces tier drift),
 # tokens, tool_uses, and est. actual cost. Sorted by cost descending.
 if [ -n "$PER_SUBAGENT" ] && [ "${#TRANSCRIPTS[@]}" -gt 1 ]; then
   echo ""
@@ -205,7 +206,24 @@ if [ -n "$PER_SUBAGENT" ] && [ "${#TRANSCRIPTS[@]}" -gt 1 ]; then
   {
     for f in "${TRANSCRIPTS[@]:1}"; do
       [ -f "$f" ] || continue
-      lbl="$(jq -rs '[.[]|.attributionAgent]|map(select(.!=null))|first // "unknown"' "$f" 2>/dev/null)"
+      # Primary label: attributionAgent from the transcript. When that's absent
+      # or the generic "general-purpose"/"unknown", fall back to the SECONDARY
+      # source — agentType in the companion <transcript>.meta.json, which carries
+      # the real persona slug (e.g. scribe/cipher/specter/herald). The jsonl
+      # "slug" field is a random codename (e.g. "vivid-mapping-swing"), NOT the
+      # persona, so it is deliberately unused. Only land on "general-purpose"
+      # when neither source yields a real persona.
+      lbl="$(jq -rs '[.[]|.attributionAgent]|map(select(.!=null and .!=""))|first // ""' "$f" 2>/dev/null)"
+      case "$lbl" in
+        ""|general-purpose|unknown)
+          meta="${f%.jsonl}.meta.json"
+          if [ -f "$meta" ]; then
+            at="$(jq -r '.agentType // ""' "$meta" 2>/dev/null)"
+            [ -n "$at" ] && lbl="$at"
+          fi
+          ;;
+      esac
+      [ -z "$lbl" ] && lbl="general-purpose"
       mdl="$(jq -rs '[.[]|select(.type=="assistant")|.message.model]|map(select(.!=null))|first // "?"' "$f" 2>/dev/null)"
       read -r si so scr scw <<< "$(jq -rs '
         [ .[]|select(.type=="assistant")|.message|select(.usage!=null)

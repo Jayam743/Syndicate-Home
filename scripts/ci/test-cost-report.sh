@@ -9,6 +9,9 @@
 #   1. POSITIVE  — main + 2 subagents summed; header shows (+2 subagent files)
 #   2. NEGATIVE  — second session's subagents NOT counted (still +2, not +3)
 #   3. EMPTY     — session with no subagents dir: reports +0, fires SUBAGENT_NOTE
+#   4. PER-SUB   — --per-subagent table: label from attributionAgent + tool count
+#   5. DERIVE    — --per-subagent label derived from companion .meta.json agentType
+#                  when attributionAgent absent (not "general-purpose" fallback)
 #
 # Requires: jq
 # Run standalone: bash scripts/ci/test-cost-report.sh
@@ -208,6 +211,43 @@ if echo "$T4_ROW" | grep -qE '(^|[[:space:]])2([[:space:]]|$)'; then
     ok "test4_persub_toolcount"
 else
     fail "test4_persub_toolcount" "expected tools=2 in row: '${T4_ROW}'"
+fi
+
+# ===================================================================
+# TEST 5: --per-subagent label derivation from companion .meta.json
+#   When attributionAgent is ABSENT but the companion <transcript>.meta.json
+#   carries agentType (the real persona slug), the row must use that persona —
+#   NOT fall back to "general-purpose".
+# ===================================================================
+echo ""
+echo "--- Test 5: --per-subagent label derived from meta.json agentType ---"
+
+D_SID="session-derive"
+mkdir -p "${PROJ}/${D_SID}/subagents"
+make_line "us.anthropic.claude-opus-4-8" 1000 500 > "${PROJ}/${D_SID}.jsonl"
+# subagent transcript with NO attributionAgent field ...
+{
+  printf '{"type":"assistant","message":{"model":"us.anthropic.claude-haiku-4-5-20251001-v1:0","usage":{"input_tokens":700,"output_tokens":250,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}\n'
+  printf '{"type":"tool_use"}\n'
+} > "${PROJ}/${D_SID}/subagents/agent-derive1.jsonl"
+# ... but a companion .meta.json that carries the persona slug
+printf '{"agentType":"cipher","description":"convert doc","spawnDepth":1}\n' \
+  > "${PROJ}/${D_SID}/subagents/agent-derive1.meta.json"
+
+T5="$(bash "${COST_REPORT}" --transcript "${PROJ}/${D_SID}.jsonl" --per-subagent 2>&1)"
+
+T5_TABLE="$(echo "$T5" | sed -n '/PER-SUBAGENT/,$p')"
+
+if echo "$T5_TABLE" | grep -q 'cipher'; then
+    ok "test5_label_derived_from_meta"
+else
+    fail "test5_label_derived_from_meta" "cipher not derived from meta.json; output: $T5"
+fi
+
+if ! echo "$T5_TABLE" | grep -qE '(^|[[:space:]])general-purpose([[:space:]]|$)'; then
+    ok "test5_no_general_purpose_fallback"
+else
+    fail "test5_no_general_purpose_fallback" "row wrongly fell back to general-purpose; output: $T5"
 fi
 
 # ===================================================================

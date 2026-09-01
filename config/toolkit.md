@@ -17,6 +17,10 @@ scripts handle routing. Use these for multi-step work instead of manual agent ch
 | `syndicate-campaign` | Multi-issue work (4+ items), KNOWN plan | Decompose into waves → execute (serial default, fan when safe) → barrier |
 | `syndicate-goalseek` | Open-ended: goal clear, plan NOT known | probe → judge sufficiency → steer → journal, until sufficient or escalation |
 
+**Build-workflow guidance:**
+- If a delegated build agent goes idle (no transcript / token growth — *not* just "no file yet") for ~10 min, treat it as hung: stop and re-delegate/resume the same-tier agent (surface to the user if needed). Absorbing it into the main loop is a last resort, never for heavy build (that moves cost onto Opus 4.8).
+- Bake design/skill output into the spec ONCE; build/Forge agents build straight from the finished spec and don't re-invoke design skills mid-build — in-build re-invocation caused 34-min hangs and killed builds. If the spec proves insufficient mid-build, return to Odin for a spec revision rather than re-invoking skills inline.
+
 ### When to Use Workflows vs Direct Routing
 
 | Situation | Use |
@@ -63,7 +67,7 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 | `/scpmmr` | Full pipeline: stage → commit → push → PR → merge | Hermes (small tasks only) |
 | `/mmr` | Merge an existing PR/MR (squash + delete branch) | Hermes |
 | `/review` | Code review via subagent | Athena |
-| `/reseed` | Context window getting low — write seed, clear, revive | Odin (when context > 80%) |
+| `/reseed` | Context window getting low — write seed, clear, revive | Odin (~60-70% on multi-day/long-deep sessions, or after a milestone e.g. an MR merge) |
 | `/nerf` | Monitor/manage context budget actively | Odin |
 | `/wtf` | Start incident troubleshooting flight recorder | Specter |
 | `/wtf-now` | Record a manual journal entry during troubleshooting | Specter |

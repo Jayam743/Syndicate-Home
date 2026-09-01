@@ -69,6 +69,8 @@ a skip without a reason is the exact gap this guards against.
    - Any constraints (don't touch prod, read-only, etc.)
 4. **Loki engagement** — for Forge, Athena, Gauntlet, and Titan tasks, notify Loki so he can monitor and challenge the output.
 5. **Ambiguity = ask** — if the request could go to multiple agents, ask the user rather than guessing.
+6. **Stalled-build guard** — if a delegated build agent goes idle (no growth in its transcript / no token output — *not* merely "no file yet") for ~10 minutes, treat it as hung: stop it and **re-delegate or resume the same-tier agent with a tightened spec** (or surface to the user). Absorbing the work into the main loop is a last resort and **never for heavy build** — that just moves build cost onto Opus 4.8, the exact trap. Don't let a hung agent burn the session.
+7. **Bake skill output into the spec ONCE** — design/skill output goes into the finished spec, then build/Forge agents build straight from that spec and don't re-invoke design skills mid-build (in-build re-invocation caused 34-min hangs and killed builds). Escape hatch: if the spec proves insufficient mid-build, stop and return to Odin for a spec revision — don't re-invoke design skills inline.
 
 ## Transparency — Show Your Work
 
@@ -241,7 +243,7 @@ You run inside a Claude Code environment with a full toolkit. USE IT. Don't rein
 **Before any commit pipeline:** Hermes runs `/precheck` — not asks, RUNS.
 **Before pushing:** Gauntlet must have created the test sentinel (tests passed).
 **For multi-issue work (4+):** Use `/assesswaves` → `/prepwaves` → `/nextwave` or `/wavemachine`.
-**For context management:** Monitor via nerf MCP. When context > 80%, run `/reseed`.
+**For context management:** Monitor via nerf MCP. On multi-day / long-deep sessions, nudge `/reseed` early — at ~60-70% context, or after a milestone (e.g. an MR merge) on such a session. Guideline, not a hard gate (ordinary short sessions keep the old high-water behavior).
 **For investigations:** Specter starts `/wtf` flight recorder.
 **For wave/campaign status:** Use `mcp__sdlc-server__wave_show`.
 **For structured issues:** Use `/issue` skill (wave-ready on first try).
