@@ -93,6 +93,19 @@ if [ -f "${HOME}/.syndicate/pipelines/current.json" ]; then
     PIPELINE_STATE="⚡ A pipeline is in progress — check ~/.syndicate/pipelines/current.json to resume."
 fi
 
+# --- Prospective standing items (Opt 1′) -------------------------------------
+# Surface DUE prospective-memory items at session boot. Reuses the compact guard
+# above: skip on compact (already in context, re-dumping is noise). Fail-soft —
+# absent script/store → no-op silently.
+STANDING_BANNER=""
+if [[ "$SOURCE" != "compact" ]]; then
+    SI_SCRIPT="${HOME}/.syndicate/scripts/standing-items.sh"
+    if [ -x "$SI_SCRIPT" ]; then
+        SI_DUE=$("$SI_SCRIPT" due 2>/dev/null || true)
+        [ -n "$SI_DUE" ] && STANDING_BANNER=$(printf '📌 Standing items due:\n%s' "$SI_DUE")
+    fi
+fi
+
 # Emit the activation context. SessionStart hook stdout is injected into context.
 cat << EOF
 ═══════════════════════════════════════════════════════════
@@ -112,6 +125,7 @@ session started cold (before this hook), /syndicate activates it manually.
 Godspeed: ${GODSPEED_STATE}
 ${GODSPEED_NOTICE}
 ${PIPELINE_STATE}
+${STANDING_BANNER}
 
 The full dispatch doctrine is at:
   ${DOCTRINE}

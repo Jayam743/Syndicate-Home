@@ -138,6 +138,9 @@ Hooks fire based on lifecycle events. Agents should expect their behavior.
 | Hook | What It Does | Agent Impact |
 |------|-------------|--------------|
 | `session-end-ledger.sh` | Logs session commits to Ledger | Ledger: data arrives automatically |
+| `session-start-syndicate.sh` (standing items) | Prints DUE prospective-memory items at boot (startup/clear/resume, not compact) via `standing-items.sh due` | All agents: future-intent TODOs surface when due — see note below |
+
+**Prospective memory (standing items):** future-intent "remember-to-do-X" TODOs live in `~/.syndicate/prospective/standing-items.md`; manage with `standing-items.sh add --due <YYYY-MM-DD|next-session> [--repo <scope>] "<desc>"` | `due` | `list` | `close <id>`. DUE items auto-surface at SessionStart in ACTIVATED repos only (a `repo:any` global item will not surface in a non-activated repo — a known boundary).
 
 **Token accounting is harness-sourced, never model-sourced.** The model cannot see
 its own token meter. Ledger's token/cost figures come from `/cost` or the SessionEnd
