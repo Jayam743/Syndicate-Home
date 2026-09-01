@@ -240,6 +240,26 @@ Check: `git remote get-url origin 2>/dev/null`
 | `markitdown` | Document conversion | PDF/DOCX → markdown |
 | `shellcheck` | Shell linting | Validate scripts |
 
+## Env-Drift Preflight (env-touching work)
+
+Recurring scar: "local env was wrong, CI had the right env" — an agent trusted a stale
+local toolchain and chased a phantom bug. Invariant B: for DRIFT-PRONE facts,
+authoritative-external > local-cache > in-context-recollection. Retrieve-and-assert.
+
+`~/.syndicate/scripts/env-preflight.sh` (iteration 1: **ansible-core only**) — run it at
+TASK-START, in the target repo, before ansible operations. It reads the EXISTING
+authoritative home (the declared `ansible-core` pin in `requirements*.txt`) and asserts
+the ACTIVE `ansible --version` against it. No manifest, no new cache. No-op on
+non-ansible repos. Dispositions (prefix `env-preflight:`):
+
+| Disposition | Meaning | Exit | Agent action |
+|-------------|---------|------|--------------|
+| `PASS` | live == declared | 0 | proceed |
+| `DRIFT` | both present, differ (`local-ahead` / `local-STALE`) | 3 | **task-block** — resolve or explicitly state the drift first. `local-STALE` = local behind, CI right: do NOT chase a phantom bug in code |
+| `UNVERIFIED` | ansible absent / pin unreadable (logged to `~/.syndicate/ledger/env-preflight.log`) | 0 | proceed only WITH explicit disclosure that env was unverifiable |
+
+Titan (infra/ansible agent) owns this at task-start; the operator can run it directly.
+
 ## Decision Matrix: When to Use What
 
 | Situation | Use |

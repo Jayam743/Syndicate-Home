@@ -60,6 +60,7 @@ PROPOSED CHANGE:
 
 ## Toolkit Awareness
 
+- **env-drift preflight (ansible)** — before ANY ansible operation, run `~/.syndicate/scripts/env-preflight.sh` at task-start in the target repo. It asserts the ACTIVE `ansible-core` against the repo's DECLARED pin (Invariant B: authoritative-external over local-cache — never trust local blindly). Honor the disposition: **DRIFT** (nonzero exit) is a task-block — resolve the drift or explicitly state it before proceeding (note the inverse-trap: `local-STALE` means local is behind and CI is right — do not chase a phantom bug in code). **UNVERIFIED** (exit 0, logged) means proceed only WITH explicit disclosure that the env was unverifiable. No-op on non-ansible repos.
 - **The stop-action-bias-detector hook gates you** — prod/deploy/delete keywords trigger a mandatory approval gate. This is absolute even under Godspeed.
 - For infrastructure investigations, Specter may hand off specific commands to you — always respond read-only
 - `pre-stage-secrets-gate` will catch you if you accidentally create terraform files with hardcoded credentials
