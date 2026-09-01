@@ -210,13 +210,19 @@ if [ "$ERRORS" -eq "$WF_ERRORS_BEFORE" ]; then
     echo "  OK: all workflows declare scribe + recall preconditions"
 fi
 
-# --- 3d. Workflow model: Literals must be pinned ids (issue #13) ---
-# Any `model:` assigned a string literal in workflows/*.js MUST be one of the 4
-# pinned Bedrock ids. This closes the 400-on-unpinned-id door at CI: an unpinned
-# id (e.g. a dropped [1m] variant) would fail the Bedrock call at runtime.
-# Band-name / agentType refs (model: BAND.sonnet) carry no literal and are skipped.
+# --- 3d. Workflow model-id Literals must be pinned ids (issues #13, #53) ---
+# EVERY Bedrock model-id string literal in workflows/*.js MUST be one of the pinned
+# ids — not only `model:`-keyed values but ALSO const-/var-assigned ids (e.g.
+# `const SECOND_PASS_MODEL = '...'`). This closes the 400-on-unpinned-id door at CI:
+# an unpinned id (a dropped [1m] variant, a typo) would pass CI then fail the Bedrock
+# call at runtime. We scan any quoted literal whose content starts with
+# `us.anthropic.claude` — a superset of the old `model:`-only check.
+# False-trip guard: full-line comments are skipped and trailing ` //...` inline
+# comments are stripped BEFORE scanning, so a commented-out/example id can't FAIL the
+# build; a real ` :` inside the id (haiku's `-v1:0`) survives because `://`-style URLs
+# have no space before `//`. Band-name refs (model: BAND.sonnet) carry no quote → skipped.
 echo ""
-echo "--- Workflow model: Literals (pinned-id only) ---"
+echo "--- Workflow model-id Literals (pinned-id only) ---"
 
 MODEL_ERRORS_BEFORE="$ERRORS"
 if [ -d "${REPO_ROOT}/workflows" ]; then
@@ -226,16 +232,19 @@ if [ -d "${REPO_ROOT}/workflows" ]; then
         while IFS= read -r val; do
             [ -z "$val" ] && continue
             if ! is_pinned_model "$val"; then
-                echo "  FAIL: ${wfname} — model literal '${val}' is not in the pinned set"
+                echo "  FAIL: ${wfname} — model-id literal '${val}' is not in the pinned set"
                 ERRORS=$((ERRORS + 1))
             fi
-        done < <(grep -oE "model:[[:space:]]*['\"][^'\"]+['\"]" "$wf" | sed -E "s/model:[[:space:]]*['\"]//; s/['\"]$//")
+        done < <(grep -vE '^[[:space:]]*//' "$wf" \
+                 | sed -E 's@[[:space:]]+//.*$@@' \
+                 | grep -oE "['\"]us\.anthropic\.claude[^'\"]*['\"]" \
+                 | sed -E "s/^['\"]//; s/['\"]\$//")
     done
     shopt -u nullglob
 fi
 
 if [ "$ERRORS" -eq "$MODEL_ERRORS_BEFORE" ]; then
-    echo "  OK: all workflow model: literals are pinned ids"
+    echo "  OK: all workflow model-id literals are pinned ids"
 fi
 
 # --- 3e. Inlined fan-eligibility Drift Guard (issue #8) ---

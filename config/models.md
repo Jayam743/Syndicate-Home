@@ -116,8 +116,10 @@ Every fallback activation is logged for Loki's monthly review:
 Previously the `[1m]` 1M-context profiles were dropped. **That trade is now REVERSED:**
 we deliberately pin the `[1m]` profiles for opus and sonnet, buying 1M context (more
 room per session, less pre-dispatch chunking/summarization). Haiku stays bare (200K —
-no `[1m]` variant exists). The cost caveat attached to this is the Fork C `[1m]`
-long-context surcharge note (see Formula band / verification TODO below).
+no `[1m]` variant exists). Console-read 2026-09-01 (AWS console): no `[1m]`/>200K tier
+was observed — one flat rate per model regardless of context window. Re-verify if sessions
+exceed 200K tokens (Anthropic first-party DOES tier >200K; Bedrock mirror unconfirmed)
+(see Formula band / Fork C below).
 
 ## Cost Note
 
@@ -208,10 +210,11 @@ switch to plain IDs (`claude-opus-4-8`, etc.).
 Sonnet 4.6 ceiling — this is an upgrade AND a cost cut, so the cost-control-band
 constraint is satisfied.
 
-**CAVEAT / VERIFICATION TODO:** The Bedrock `[1m]` >200K long-context surcharge for
-`sonnet-5[1m]` was **NOT machine-verified this session**. First-party (direct Anthropic)
-lists 1M context as native/flat, and `opus-4-8[1m]` is already cost-verified — but the
-Sonnet-5 `[1m]` line has not been confirmed in the AWS Bedrock console. **Operator TODO:
-confirm the `sonnet-5[1m]` >200K pricing in the AWS console** and update the Cost Note if
-a long-context surcharge applies. (`cost-report.sh` currently applies one flat rate per
-model family regardless of context window.)
+**Pricing console-read 2026-09-01 (AWS console): no >200K tier observed — one flat rate
+per model regardless of context window.** On that reading `sonnet-5[1m]` bills at the same
+$2/$10 base rate as any Sonnet 5 profile, so `cost-report.sh` applying one flat rate per
+model family holds. **Re-verify if sessions exceed 200K tokens:** Anthropic's first-party
+API DOES tier >200K for 1M-context models, and Bedrock is not confirmed to mirror it — a
+console screenshot can miss such a row, and `[1m]` profiles exist to run >200K sessions.
+The console price is the on-demand LIST upper bound; the committed-use/EDP discount is a
+separate layer captured by `BEDROCK_COST_FACTOR` in `cost-report.sh`.

@@ -12,6 +12,8 @@
 #   4. PER-SUB   — --per-subagent table: label from attributionAgent + tool count
 #   5. DERIVE    — --per-subagent label derived from companion .meta.json agentType
 #                  when attributionAgent absent (not "general-purpose" fallback)
+#   6. CACHE     — cache tokens priced at cache rates, NOT the input rate (guards the
+#                  old ~2x over-report: cache_read=0.50, cache_write=6.25, not input 5)
 #
 # Requires: jq
 # Run standalone: bash scripts/ci/test-cost-report.sh
@@ -248,6 +250,44 @@ if ! echo "$T5_TABLE" | grep -qE '(^|[[:space:]])general-purpose([[:space:]]|$)'
     ok "test5_no_general_purpose_fallback"
 else
     fail "test5_no_general_purpose_fallback" "row wrongly fell back to general-purpose; output: $T5"
+fi
+
+# ===================================================================
+# TEST 6: CACHE-TOKEN PRICING — cache tokens are billed at the cache rates,
+#   NOT the input rate. This guards the old ~2x over-report hypothesis (applying the
+#   input rate to cache tokens). For Opus: cache_read=0.50, cache_write(5m)=6.25/MTok,
+#   vs input=5. So 1,000,000 cache_read tokens must cost $0.50 (not $5.00) and
+#   1,000,000 cache_write tokens must cost $6.25 (not $5.00).
+# ===================================================================
+echo ""
+echo "--- Test 6: Cache-token pricing (cache rates, not input rate) ---"
+
+# 1M cache_read tokens, zero input/output — must price at the cache_read rate (0.50).
+CR_SID="session-cacheread"
+printf '{"type":"assistant","message":{"model":"us.anthropic.claude-opus-4-8[1m]","usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":1000000,"cache_creation_input_tokens":0}}}\n' \
+  > "${PROJ}/${CR_SID}.jsonl"
+
+T6R="$(bash "${COST_REPORT}" --transcript "${PROJ}/${CR_SID}.jsonl" 2>&1)"
+T6R_TOTAL_LINE="$(echo "$T6R" | grep 'ON-DEMAND LIST:' || true)"
+
+if echo "$T6R_TOTAL_LINE" | grep -q 'ON-DEMAND LIST: \$0\.50'; then
+    ok "test6_cache_read_priced_at_cache_rate"
+else
+    fail "test6_cache_read_priced_at_cache_rate" "expected \$0.50 (cache_read rate, not \$5.00 input); got: '${T6R_TOTAL_LINE}'"
+fi
+
+# 1M cache_write tokens, zero input/output — must price at the cache_write(5m) rate (6.25).
+CW_SID="session-cachewrite"
+printf '{"type":"assistant","message":{"model":"us.anthropic.claude-opus-4-8[1m]","usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":1000000}}}\n' \
+  > "${PROJ}/${CW_SID}.jsonl"
+
+T6W="$(bash "${COST_REPORT}" --transcript "${PROJ}/${CW_SID}.jsonl" 2>&1)"
+T6W_TOTAL_LINE="$(echo "$T6W" | grep 'ON-DEMAND LIST:' || true)"
+
+if echo "$T6W_TOTAL_LINE" | grep -q 'ON-DEMAND LIST: \$6\.25'; then
+    ok "test6_cache_write_priced_at_cache_rate"
+else
+    fail "test6_cache_write_priced_at_cache_rate" "expected \$6.25 (cache_write rate, not \$5.00 input); got: '${T6W_TOTAL_LINE}'"
 fi
 
 # ===================================================================

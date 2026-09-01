@@ -143,7 +143,9 @@ phase('Review')
 // Two tracks run in parallel:
 //   (a) bug-finding dimensions — defects PRESENT in the code
 //   (b) omission checks — one closed lookup per checklist item (requirements ABSENT)
-const bugThunks = DIMENSIONS.map(dim => () =>
+// One dimensional review pass, as a thunk. `extra.model` pins a cross-family model for
+// the conditional second pass (below); omitting it inherits the main-loop model (Opus).
+const dimensionReview = (dim, extra = {}) => () =>
   agent(
     `You are Athena reviewing for ${dim.key} issues.
 
@@ -162,8 +164,9 @@ const bugThunks = DIMENSIONS.map(dim => () =>
     - findings: array of {severity, file, line, issue, failureScenario, fix}
     - clean: boolean (true if no findings)`,
     {
-      label: `athena:${dim.key}`,
+      label: extra.label || `athena:${dim.key}`,
       phase: 'Review',
+      ...(extra.model ? { model: extra.model } : {}),
       schema: {
         type: 'object',
         properties: {
@@ -188,7 +191,8 @@ const bugThunks = DIMENSIONS.map(dim => () =>
       }
     }
   )
-)
+
+const bugThunks = DIMENSIONS.map(dim => dimensionReview(dim))
 
 // Omission track: ONE closed lookup per checklist item. This is the "invert the
 // question" trick — instead of "is anything missing?" (unanswerable), we ask
@@ -242,11 +246,70 @@ const omissions = omissionResults
     evidence: o.evidence
   }))
 
-const allFindings = reviews
+const primaryFindings = reviews
   .filter(Boolean)
   .flatMap(r => r.findings || [])
 
 log(`Omission check: ${omissionResults.filter(o => o.satisfied === 'yes').length}/${omissionResults.length} requirements satisfied, ${omissions.length} unmet`)
+
+// STAGE: second-pass (conditional) — decorrelated cross-family breadth screen.
+// A single model's review is correlated with that model's own blind spots. On HIGH-STAKES
+// diffs (security-touching, or a large/wiring change) we re-run the SAME dimensional
+// review on a DIFFERENT model family (Sonnet 5) to catch what the Opus pass missed. It is
+// GATED so trivial reviews don't pay for a second pass. Both passes' findings are merged
+// and flow through the same Loki adversarial Verify below.
+const SECOND_PASS_MODEL = 'us.anthropic.claude-sonnet-5[1m]' // pinned id (validate.sh 3d)
+
+// High-stakes signal: explicit arg wins; otherwise infer from signals the pipeline already
+// has — security-sensitive surface (context/target/criteria text or a security-dimension
+// finding), or a large/wiring change (a high atomic-checklist count, >=10). Two prior
+// triggers were corrected (Loki #53): the primary-findings-count trigger was DROPPED —
+// it was inverted (decorrelation value is highest when the primary found LITTLE, i.e.
+// false-clean risk, not when it found a lot); and the checklist-count threshold was
+// raised 6 -> 10 because Athena decomposes into atomic items, so 6 over-fired on
+// ordinary changes.
+const securitySurface = /\b(security|auth|secret|credential|token|password|crypto|inject|deserial|privileg|owasp|prod)\b/i
+  .test(`${args.context || ''} ${reviewTarget} ${acceptanceCriteria}`)
+const securityDim = reviews.find(r => r && r.dimension === 'security')
+const securityFinding = securityDim ? securityDim.clean === false : false
+const highStakes = typeof args.highStakes === 'boolean'
+  ? args.highStakes
+  : (securitySurface || securityFinding || checklistItems.length >= 10)
+
+let secondPassFindings = []
+if (highStakes) {
+  log(`Second-pass: high-stakes diff — decorrelated review on ${SECOND_PASS_MODEL}`)
+  const secondReviews = await parallel(
+    DIMENSIONS.map(dim => dimensionReview(dim, { label: `athena:2nd:${dim.key}`, model: SECOND_PASS_MODEL }))
+  )
+  secondPassFindings = secondReviews
+    .filter(Boolean)
+    .flatMap(r => (r.findings || []).map(f => ({ ...f, pass: ['sonnet5-2nd'] })))
+  log(`Second-pass (Sonnet 5): ${secondPassFindings.length} additional candidate finding(s)`)
+} else {
+  log('Second-pass: skipped (not high-stakes)')
+}
+
+// Merge + DEDUP both passes before Verify. Without this, a bug found by BOTH families
+// would be Loki-Verified twice (wasted spend) and could appear twice in the output.
+// Key on file + line + normalized issue (lowercase, trimmed, whitespace-collapsed).
+// When the SAME finding shows up in both passes we collapse to ONE entry and union its
+// provenance into a `pass` array — cross-family agreement is a HIGHER-confidence signal,
+// flagged via `crossFamily` for the Verify phase / output to surface.
+const normIssue = s => String(s == null ? '' : s).toLowerCase().trim().replace(/\s+/g, ' ')
+const findingKey = f => `${f.file}::${f.line}::${normIssue(f.issue)}`
+const taggedPrimary = primaryFindings.map(f => ({ ...f, pass: ['primary'] }))
+const dedupByKey = new Map()
+for (const f of [...taggedPrimary, ...secondPassFindings]) {
+  const key = findingKey(f)
+  const existing = dedupByKey.get(key)
+  if (existing) {
+    existing.pass = [...new Set([...existing.pass, ...f.pass])]
+  } else {
+    dedupByKey.set(key, { ...f, pass: [...f.pass] })
+  }
+}
+const allFindings = [...dedupByKey.values()].map(f => ({ ...f, crossFamily: f.pass.length > 1 }))
 
 // Truly clean only if BOTH tracks are clean (no bugs present AND no requirements absent)
 if (allFindings.length === 0 && omissions.length === 0) {
@@ -289,7 +352,7 @@ const verified = await parallel(
       - Line: ${finding.line}
       - Issue: ${finding.issue}
       - Failure scenario: ${finding.failureScenario}
-      - Suggested fix: ${finding.fix}
+      - Suggested fix: ${finding.fix}${finding.crossFamily ? '\n      - NOTE: flagged INDEPENDENTLY by both model families (cross-family agreement) — a higher-confidence signal; weigh that against your refutation.' : ''}
 
       Your job: prove this finding is WRONG. Read the actual code.
       - Is the code actually vulnerable/broken as claimed?

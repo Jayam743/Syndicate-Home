@@ -14,14 +14,23 @@
 #   cost-report.sh --append "label"     # also append a dated line to the cost ledger
 #   cost-report.sh --kind build|operate # tag session kind in ledger line
 #
-# Rates are per MILLION tokens — AWS Bedrock ON-DEMAND LIST (verified vs console).
-#   cache_read  = 0.1x input rate ;  cache_write(5m) = 1.25x input rate.
-# There is NO 1M-context premium on Bedrock (the [1m] 1.25x premium was removed).
-# IMPORTANT: on-demand list is an UPPER BOUND. Actual billed cost on a committed-use
-# / EDP plan is much lower — apply BEDROCK_COST_FACTOR (default 0.53, calibrated
-# 2026-08-27 from Cost Explorer: $28.58 actual / $54.10 list = 0.53). The report
-# prints BOTH the on-demand list and the est. actual. The Opus-% delegation metric
-# is a RATIO, so the factor never affects it.
+# Rates are per MILLION tokens — AWS Bedrock ON-DEMAND LIST price. Console-read 2026-09-01
+# (operator, AWS console) — the per-model grid lives in rate() below. No >200K/long-context
+# tier was OBSERVED in the console table: one flat rate per model regardless of context
+# window, so the old [1m] 1.25x premium was removed as a phantom over-count.
+# RE-VERIFY per-model on model-add: if any session exceeds 200K tokens, confirm no
+# long-context tier applies — Anthropic's FIRST-PARTY API DOES tier >200K for 1M-context
+# models, and Bedrock is NOT confirmed to mirror that. A console screenshot can miss such
+# a row, and [1m] profiles exist precisely to run >200K sessions.
+#
+# TWO-LAYER cost model — keep these layers distinct:
+#   1. on-demand LIST price (this table)  — the honest UPPER BOUND.
+#   2. committed-use / EDP DISCOUNT       — a SEPARATE layer, captured by
+#      BEDROCK_COST_FACTOR (default 0.49, calibrated from real AWS Cost Explorer bills —
+#      see the COST_FACTOR block below). Do NOT bake this discount into the rate table;
+#      that would double-correct against the calibrated factor.
+# The report prints BOTH the on-demand list and the est. actual (list x factor). The
+# Opus-% delegation metric is a RATIO, so the factor never affects it.
 #
 # READ-ONLY except the optional cost-ledger append.
 
@@ -86,15 +95,21 @@ command -v jq >/dev/null 2>&1 || { echo "cost-report: jq required" >&2; exit 1; 
 
 # Per-model $/MTok rates: input | output | cache_read | cache_write(5m).
 # Matched by substring on the model id (Bedrock ids carry version suffixes).
-# Verified 2026-08-27 against the AWS Bedrock console pricing tables (exact match:
-# opus 5/25/0.5/6.25, sonnet 2/10/0.2/2.5 (Sonnet 5), haiku 1/5/0.1/1.25).
-# NO [1m]/1M-context premium: the Bedrock tables list ONE rate per model regardless
-# of context window, so [1m] model ids get the SAME base rate (the previous 1.25x
-# [1m] premium was a phantom over-count and has been removed).
+# Console-read 2026-09-01 (operator, AWS console) against the Bedrock pricing table:
+#   opus (5/4.8/4.7): 5 | 25 | 0.50 | 6.25   (console-read)
+#   sonnet 5:         2 | 10 | 0.20 | 2.50   (console-read)
+#   haiku 4.5:        1 |  5 | 0.10 | 1.25   (INFERRED, not console-exact — haiku is NOT
+#                                             in the console table; rate follows the
+#                                             0.1x-input cache-read pattern)
+# No >200K/long-context tier was OBSERVED in the console table: one flat rate per model
+# regardless of context window, so [1m] ids get the SAME base rate — the previous 1.25x
+# [1m] premium was a phantom over-count and has been removed. RE-VERIFY on model-add: if a
+# session exceeds 200K tokens, confirm no long-context tier applies (Anthropic first-party
+# DOES tier >200K; Bedrock mirror unconfirmed).
 rate() { # $1=model-id  -> echoes "in out cread cwrite"
   case "$1" in
     *opus*)         echo "5 25 0.5 6.25" ;;
-    *sonnet*)       echo "2 10 0.2 2.5" ;;   # Sonnet 5 ($2/$10); [1m] >200K surcharge unverified — see models.md Fork C TODO
+    *sonnet*)       echo "2 10 0.2 2.5" ;;   # Sonnet 5 — console-read 2026-09-01: no >200K tier observed (re-verify if >200K sessions; Bedrock mirror of first-party >200K tiers unconfirmed)
     *haiku*)        echo "1 5 0.1 1.25" ;;
     *)              echo "5 25 0.5 6.25" ;;  # unknown -> assume Opus (conservative)
   esac
