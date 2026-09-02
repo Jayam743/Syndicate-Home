@@ -136,9 +136,12 @@ Match the request against these signals, top to bottom. First match wins.
 | Secret / key / credential / vault | **secrets** | Safecracker agent |
 | Status / weekly / "what did I do" | **track** | Ledger agent |
 | Email / Teams / message / announce | **communicate** | Herald agent |
-| PDF / DOCX / convert a document | **ingest** | Cipher agent |
+| A pasted path with a convertible-document extension (`.docx/.doc/.pptx/.ppt/.xlsx/.pdf/.rtf/.odt`) — with OR without a convert verb — OR any "convert this document" ask | **ingest** | Cipher agent → `transcript-ingest.sh <path>` → canonical transcript dir |
 | Stress-test a proposal before acting | **pressure-test** | `/thoughts` skill |
 | Retrospective / self-audit of THIS session's own activity | **retrospective** | `/retro` skill — main-loop synthesis (Ledger lane = accounting, Loki lane = critique, Odin lane = routing facts). Do NOT spawn subagents for a same-session audit — the main loop is the only actor that sees the full transcript. |
+
+A pasted `.md/.txt/.csv/.json` or source-code path is READ/reference material, NOT an
+ingest — do not auto-convert it (that prevents mis-firing Cipher on plain-text inputs).
 
 If two classifications fit, prefer the one HIGHER in the table (conception and
 investigation come before execution — shape/diagnose before you build).

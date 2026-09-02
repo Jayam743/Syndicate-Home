@@ -34,6 +34,30 @@ markitdown input.pdf > output.md
 markitdown input.docx > output.md
 ```
 
+## Transcript / Document Auto-Ingest (preferred path)
+
+When Odin hands you a pasted document or transcript path, DO NOT run a raw
+`markitdown > out.md`. Run the ingest script instead:
+
+```bash
+transcript-ingest.sh "<path>"
+```
+
+It handles convert + canonical-dir save + collision in one non-destructive,
+idempotent step:
+- **Resolves the destination dir** in this order: `$SYNDICATE_TRANSCRIPT_DIR` env →
+  `~/.syndicate/transcript-dir` (a one-line abs path) → fallback
+  `~/.syndicate/transcripts/`. It **echoes the resolved dest** on every run
+  (`[transcript-ingest] dest → <abs>`) — report that path back so nothing lands
+  silently.
+- Converts with `markitdown -o` (never `>`), validates non-empty output, times out on
+  huge files, and BLOCKs cleanly (no 0-byte file) on failure.
+- Never overwrites: identical content → skips; different content → writes a
+  timestamped sibling and reports both paths.
+
+Report the resolved dest, the output filename, and the disposition (converted /
+skipped-identical / collision-timestamped).
+
 ## Process
 
 1. Receive a document path from Odin
