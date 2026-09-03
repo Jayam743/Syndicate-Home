@@ -175,9 +175,22 @@ For **investigate**, **research**, **goal-seek**, **code-change**, **review**, a
 ```
 
 This returns a CONTEXT BRIEF containing:
-- The 2-3 most relevant recent sessions (keyword+title matched, recency-ranked)
-  — what you already asked/tried about this exact thing
+- The 2-3 most relevant recent sessions — keyword-matched and ranked by SQLite
+  FTS5/**BM25** relevance over the existing `~/.claude/projects/**/*.jsonl`
+  transcripts, with recency as the tiebreak (so a recent relevant session isn't
+  buried under an old high-match one). BM25 favors rare, discriminating terms over
+  raw match-count, so a short on-point session outranks a long one that merely
+  repeats a common word. The index is kept fresh by a SessionStart self-heal
+  (incremental; no external scheduler). If python3/FTS5 or the index is
+  unavailable, recall falls back to a live grep keyword scan and SAYS so in the
+  brief — it never silently skips the search.
 - The repo's recent merge history (what shipped lately)
+
+**Honest-empty guarantee:** a "no past sessions mention …" line ALWAYS means the
+corpus WAS searched and nothing matched — never that the search didn't run. An
+unavailable index is a marked fallback-to-grep, not a silent empty. recall stays
+read-only/stdout-only (the index WRITER is the separate SessionStart seam); it
+always exits 0.
 
 Fold the brief into the agent's prompt as PRIOR CONTEXT. The point (per the user's
 intent): when they ask "why is this crashing?" or "how do we make this better?",

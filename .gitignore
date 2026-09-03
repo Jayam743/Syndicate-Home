@@ -15,3 +15,10 @@ Thumbs.db
 
 # WTF flight-recorder session data (local, transient)
 .wtf/
+
+# SQLite recall index (built under ~/.syndicate, but guard against any stray copy
+# landing in the repo tree — never commit a .db, esp. from the WSL /mnt/c mount)
+*.db
+*.db-wal
+*.db-shm
+kb/recall-index.db

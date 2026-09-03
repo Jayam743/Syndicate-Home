@@ -106,6 +106,33 @@ if [[ "$SOURCE" != "compact" ]]; then
     fi
 fi
 
+# --- Recall BM25 index self-heal (Invariant A: SessionStart-only cadence) ------
+# Keep scripts/recall.sh's FTS5/BM25 index fresh WITHOUT any external scheduler.
+# Incremental (only files newer than the last index) once the index exists; the
+# one-time cold build (373 MB) happens on first boot. BOTH run BACKGROUNDED so the
+# boot path never blocks, timeout-bounded, and fully QUIET — SessionStart stdout is
+# injected into context, so every byte here goes to a log file, none to stdout.
+# Fail-soft: absent python3/FTS5/helper → no-op (recall's grep fallback covers it).
+# The .db lives under ~/.syndicate (ext4), never on the /mnt/c WSL mount.
+if [[ "$SOURCE" != "compact" ]]; then
+    INDEX_PY="${REPO_ROOT}/scripts/lib/recall-index.py"
+    RECALL_DB="${SYNDICATE_RECALL_DB:-${HOME}/.syndicate/kb/recall-index.db}"
+    PROJECTS_DIR="${SYNDICATE_PROJECTS_DIR:-${HOME}/.claude/projects}"
+    RECALL_LOG="${HOME}/.syndicate/logs/recall-index.log"
+    if [ -f "$INDEX_PY" ] && [ -d "$PROJECTS_DIR" ] && command -v python3 >/dev/null 2>&1 \
+       && python3 "$INDEX_PY" probe >/dev/null 2>&1; then
+        mkdir -p "$(dirname "$RECALL_DB")" "$(dirname "$RECALL_LOG")" 2>/dev/null || true
+        if command -v timeout >/dev/null 2>&1; then
+            RUN_IDX=(timeout 600 python3 "$INDEX_PY" index --db "$RECALL_DB" --projects "$PROJECTS_DIR")
+        else
+            RUN_IDX=(python3 "$INDEX_PY" index --db "$RECALL_DB" --projects "$PROJECTS_DIR")
+        fi
+        # Detach so the indexer survives the hook returning; all output → log only.
+        nohup "${RUN_IDX[@]}" >>"$RECALL_LOG" 2>&1 &
+        disown 2>/dev/null || true
+    fi
+fi
+
 # Emit the activation context. SessionStart hook stdout is injected into context.
 cat << EOF
 ═══════════════════════════════════════════════════════════

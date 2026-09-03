@@ -7,8 +7,10 @@
 # with what you already know, not from zero.
 #
 # Design (per user intent):
-#   - Keyword + aiTitle match against existing transcripts (NOTHING is moved)
-#   - Ranked by recency, capped at 2-3 sessions (don't go back too far)
+#   - Keyword match against existing transcripts (NOTHING is moved)
+#   - Ranked by SQLite FTS5/BM25 relevance, recency as tiebreak, capped at 2-3
+#     sessions (don't go back too far). If python3/FTS5 or the index is
+#     unavailable, falls back to a live grep keyword scan (marked, never silent).
 #   - Plus recent merge history from GitLab/GitHub
 #
 # READ-ONLY. Touches nothing but stdout. Safe to run anytime.
@@ -21,11 +23,21 @@
 # a grep with no match must not abort the whole brief.
 set -u
 
-PROJECTS_DIR="${HOME}/.claude/projects"
+PROJECTS_DIR="${SYNDICATE_PROJECTS_DIR:-${HOME}/.claude/projects}"
 MAX_SESSIONS=3
 MAX_MRS=10
 REPO_DIR="$(pwd)"
 QUERY=""
+
+# BM25 index (SQLite FTS5) — the primary Part-1 scorer, with the legacy grep scan
+# as fallback. The .db lives under ~/.syndicate (ext4 $HOME), NEVER in the repo tree
+# on the WSL /mnt/c mount (SQLite locking hazard). Overridable for tests.
+RECALL_DB="${SYNDICATE_RECALL_DB:-${HOME}/.syndicate/kb/recall-index.db}"
+# Resolve THIS script's real dir (may be invoked via a ~/.syndicate/scripts symlink)
+# so we find the repo-local helper even when scripts/lib isn't symlinked out.
+RECALL_SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+RECALL_LIB_DIR="$(cd "$(dirname "$RECALL_SELF")/lib" 2>/dev/null && pwd || echo "")"
+INDEX_PY="${RECALL_LIB_DIR}/recall-index.py"
 
 # --- Parse args ---
 while [[ $# -gt 0 ]]; do
@@ -78,18 +90,39 @@ echo "── Relevant past sessions (top ${MAX_SESSIONS}) ──"
 if [ ! -d "$PROJECTS_DIR" ] || [ -z "$PATTERN" ]; then
     echo "  (no transcript history available)"
 else
-    # For each transcript, score = # of matching lines. Track mtime for recency.
-    # Emit "mtime<TAB>score<TAB>path", then sort by score then recency.
+    # Scored rows are "mtime<TAB>score<TAB>path", higher score == more relevant.
+    # Downstream sort (-k2,2nr -k1,1nr) ranks by score then recency for BOTH
+    # scorers, so the recency tiebreak is preserved regardless of which ran.
     SCORED="$(mktemp)"
-    while IFS= read -r -d '' f; do
-        # Count lines matching any keyword (case-insensitive).
-        # grep -c prints 0 and exits 1 on no-match, so take first line only.
-        score="$(grep -icE "$PATTERN" "$f" 2>/dev/null | head -1)"
-        score="${score:-0}"
-        [ "$score" -gt 0 ] 2>/dev/null || continue
-        mtime="$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0)"
-        printf '%s\t%s\t%s\n' "$mtime" "$score" "$f" >> "$SCORED"
-    done < <(find "$PROJECTS_DIR" -name "*.jsonl" -print0 2>/dev/null)
+
+    # --- Primary scorer: SQLite FTS5/BM25 over the SAME transcript corpus. ---
+    # Available iff python3 + FTS5 are present AND the query ran against a
+    # populated index (exit 0). Exit 3 (index missing/empty) or any error → fall
+    # back to the live grep scan, so an index-miss is never a silent no-search.
+    SCORER="grep"
+    if command -v python3 >/dev/null 2>&1 && [ -f "$INDEX_PY" ] \
+       && python3 "$INDEX_PY" probe >/dev/null 2>&1; then
+        if python3 "$INDEX_PY" query --db "$RECALL_DB" "${KW[@]}" > "$SCORED" 2>/dev/null; then
+            SCORER="bm25"
+        else
+            : > "$SCORED"   # index unavailable/unusable — reset for grep fallback
+        fi
+    fi
+
+    # --- Fallback scorer: live grep scan (also the honest "we DID search" path
+    #     when the BM25 index is absent, empty, cold-building, or unusable). ---
+    if [ "$SCORER" != "bm25" ]; then
+        echo "  (note: BM25 index unavailable — used live keyword scan)"
+        while IFS= read -r -d '' f; do
+            # Count lines matching any keyword (case-insensitive).
+            # grep -c prints 0 and exits 1 on no-match, so take first line only.
+            score="$(grep -icE "$PATTERN" "$f" 2>/dev/null | head -1)"
+            score="${score:-0}"
+            [ "$score" -gt 0 ] 2>/dev/null || continue
+            mtime="$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0)"
+            printf '%s\t%s\t%s\n' "$mtime" "$score" "$f" >> "$SCORED"
+        done < <(find "$PROJECTS_DIR" -name "*.jsonl" -print0 2>/dev/null)
+    fi
 
     if [ ! -s "$SCORED" ]; then
         echo "  (no past sessions mention: ${KW[*]})"
@@ -105,7 +138,11 @@ else
 
             echo ""
             echo "  ▸ ${title}"
-            echo "    ${date} · ${proj} · ${score} matching lines"
+            if [ "$SCORER" = "bm25" ]; then
+                echo "    ${date} · ${proj} · BM25 relevance ${score}"
+            else
+                echo "    ${date} · ${proj} · ${score} matching lines"
+            fi
 
             # Pull up to 2 representative matching USER messages (what you asked)
             grep -iE "$PATTERN" "$path" 2>/dev/null \
