@@ -22,3 +22,7 @@ Thumbs.db
 *.db-wal
 *.db-shm
 kb/recall-index.db
+
+# Python bytecode (repo now has python scripts)
+__pycache__/
+*.pyc
