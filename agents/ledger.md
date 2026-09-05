@@ -124,7 +124,7 @@ usage + model per message — so cost is computable, broken down by model).
 ## User Identity (for git log filtering)
 
 Author names to search: Jayam Patel, jpatel, Jbpatel
-Repos path: /mnt/c/Users/jpatel/blueshift-devkit/blueshift-*
+Repos path: the repos under the operator's working directory
 Date range default: last Wednesday → this Wednesday (COB Wednesday)
 
 ## Rules

@@ -62,15 +62,13 @@ What do you want to tackle? (or "just log it and move on")
 Then BRAINSTORM with the user — this is a conversation, not a report dump. Loki
 proposes; the human decides what actually gets built (Axiom: human holds the gate).
 
-### 5. Sync to the repo (version the history)
-After the review, copy the month's log into the Syndicate repo so it's
-version-controlled:
-```
-cp ~/.syndicate/loki/<MONTH>.md <syndicate-repo>/loki/logs/<MONTH>.md
-```
-Then offer to commit it ("commit this month's Loki log?"). The live copy at
-`~/.syndicate/loki/` stays as the working log; `loki/logs/` in the repo is the
-durable, committed history.
+### 5. Everything Loki-derived stays local — nothing is committed
+Raw monthly logs (`~/.syndicate/loki/<MONTH>.md`) contain session-specific, possibly
+sensitive observations, so they stay LOCAL and are **never committed** to the repo.
+There is no copy-to-repo step. The regenerated `loki/CHANGELOG.md` is a VIEW over those
+logs and can re-leak the same content, so it is **local-only too** (gitignored) — it is
+NOT a committed artifact. The repo's entire Loki footprint is the empty
+`loki/logs/.gitkeep`; the repo tracks no Loki-generated content at all.
 
 ### 6. Apply what the user approves
 For each improvement the user greenlights, make the change (route through the normal
@@ -79,14 +77,16 @@ doctrine — code-change → pipeline, etc.), then update that finding's status 
 An `applied` finding MUST carry a `- **Pinned-by:** <ref>` line (the commit/PR/MR
 that pins the fix) — `loki-log.sh --status applied` now requires `--pinned-by`.
 
-### 7. Regenerate the defect CHANGELOG
+### 7. Regenerate the defect CHANGELOG (locally, on demand)
 After the status-flips in step 6, rebuild the resolved-defect rollup:
 ```
 scripts/loki-changelog.sh
 ```
-It sources `loki/logs/*.md` (ALL months), selects every `[applied]` finding that
-carries a `Pinned-by` ref, and rewrites `loki/CHANGELOG.md` from scratch — one row
-per defect: **defect** (title), **fix** (action taken), **pinned-by** (ref), **when**.
+It sources `~/.syndicate/loki/*.md` (ALL months, the LOCAL raw logs — never a repo
+copy), selects every `[applied]` finding that carries a `Pinned-by` ref, and rewrites
+the LOCAL (gitignored) `loki/CHANGELOG.md` from scratch — one row per defect: **defect**
+(title), **fix** (action taken), **pinned-by** (ref), **when**. It is a local, on-demand
+view; it is NOT committed.
 
 - **Review the backfill dry-run.** The script prints every `[applied]` finding that
   LACKS a `Pinned-by` line as "needs triage". For each: either backfill the pinning
@@ -96,7 +96,8 @@ per defect: **defect** (title), **fix** (action taken), **pinned-by** (ref), **w
 - **It is REGENERABLE, not append-only.** `applied` is rebuttable and can regress; a
   full regenerate means a finding that loses its `Pinned-by` (or flips status) drops
   out automatically. Do not hand-edit `loki/CHANGELOG.md`.
-- Offer to commit `CHANGELOG.md` together with the synced log from step 5.
+- Do NOT commit `CHANGELOG.md` — it is gitignored and stays local, same as the raw logs
+  it is derived from (step 5). Regenerate it locally whenever you want the rollup.
 
 > Recall integration is DEFERRED: when it lands, recall will index `CHANGELOG.md`
 > (small, resolved-only), NOT the raw log.

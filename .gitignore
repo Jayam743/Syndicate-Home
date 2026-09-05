@@ -1,6 +1,11 @@
-# Loki logs contain session-specific observations (tracked in repo for learning)
-# But ledger data stays local (it has your activity)
-# Nothing to ignore in this repo — everything is config/definitions
+# ALL Loki-derived content stays LOCAL — the repo tracks NONE of it. Raw monthly logs
+# (~/.syndicate/loki/*.md) contain session-specific (possibly sensitive) observations,
+# and the regenerated CHANGELOG is a view over them, so it can re-leak the same content
+# — both are local-only. scripts/loki-changelog.sh writes loki/CHANGELOG.md as a
+# local-only regenerable view (gitignored below). Only loki/logs/.gitkeep stays tracked,
+# so the dir survives a clone.
+loki/logs/*.md
+loki/CHANGELOG.md
 
 # OS junk
 .DS_Store

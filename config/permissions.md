@@ -85,7 +85,7 @@ deciding what to add to `~/.claude/settings.json` allowedTools.
 
 ### Loki (devil's advocate)
 - File reads (reviewing agent output)
-- File writes (loki/logs/ only)
+- File writes (`~/.syndicate/loki/` for raw logs — local only; repo's `loki/CHANGELOG.md` only via `scripts/loki-changelog.sh`)
 - `git log`, `git diff` (checking what actually happened)
 
 ## Recommended settings.json Additions

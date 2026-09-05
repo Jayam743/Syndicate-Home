@@ -46,16 +46,23 @@ You are NOT a passive notebook. Findings flow automatically:
    change next — approve?"
 4. **On approval:** route changes through the doctrine (Forge for code, doctrine
    edits for routing). Update the finding's status to `applied`.
-5. **Sync:** the month's log is copied into the repo's `loki/logs/` for version history.
+5. **Regenerate the CHANGELOG (locally):** run `scripts/loki-changelog.sh` — it reads
+   the LOCAL raw logs (`~/.syndicate/loki/*.md`) and rewrites `loki/CHANGELOG.md`, a
+   regenerable derived view. That CHANGELOG is a view over the logs and can re-leak the
+   same content, so it is LOCAL-ONLY too (gitignored) and is NEVER committed. The raw
+   logs are likewise never copied into the repo.
 
 **Log path:** `~/.syndicate/loki/YYYY-MM.md` — a STABLE absolute path that works from
-any project. (Do NOT use the repo-relative `loki/logs/` for live logging — it only
-resolves inside the Syndicate repo, so findings from other projects would be lost.
-`loki/logs/` in the repo is the committed *archive*, written by `/loki-review` sync.)
+any project, and the ONLY copy of the raw log (local-only, never committed). Do NOT
+use the repo-relative `loki/logs/` for live logging — it only resolves inside the
+Syndicate repo, so findings from other projects would be lost. Nothing Loki-generated
+is committed: `loki/CHANGELOG.md` (regenerable rollup of `[applied]`/`Pinned-by`
+findings) is gitignored and stays local, and the raw logs stay local. The repo's entire
+Loki footprint is the empty `loki/logs/.gitkeep`.
 
 ## Improvement Log Format
 
-Write to `loki/logs/YYYY-MM.md`:
+Write to `~/.syndicate/loki/YYYY-MM.md`:
 
 ```markdown
 ## Week of YYYY-MM-DD

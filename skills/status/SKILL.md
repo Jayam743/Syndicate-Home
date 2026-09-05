@@ -82,18 +82,18 @@ Payload shape (all 6 keys required, all non-empty):
   "filename": "Weekly Status - Patel, Jayam - Week ending 2026-09-02.docx",
   "accomplishments": [
     {
-      "theme": "Cotterpin engagement lifecycle (blueshift-agent-mantle):",
+      "theme": "Auth service hardening (example-api):",
       "details": [
-        "Built the real-git FrontierReader deriving resolution from lock history (#238) and a leak-proof JIT-token LockRail (#234)",
-        "Shipped an argv-less cotterpin-lock CLI (#240) and R-18 approval verification (#241)",
-        "Closed the loop with engagement teardown and full close (#275)"
+        "Built token refresh deriving state from history (#238) and a leak-proof JIT-token session store (#234)",
+        "Shipped a scriptable admin CLI (#240) and approval verification (#241)",
+        "Closed the loop with teardown and full close (#275)"
       ]
     },
     {
-      "theme": "Salvo config-as-code (blueshift-ansible + blueshift-manifests):",
+      "theme": "Config-as-code (example-infra):",
       "details": [
-        "Shipped the salvo-bootstrap playbook to config-as-code the hand-built substrate",
-        "Migrated the Salvo DB from SQLite to Postgres with a task-retention cap"
+        "Shipped the bootstrap playbook to config-as-code the hand-built substrate",
+        "Migrated the app DB from SQLite to Postgres with a retention cap"
       ]
     }
   ],

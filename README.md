@@ -220,7 +220,7 @@ Syndicate/
 ├── scripts/
 │   ├── ci/              ← validate.sh, drift-check.sh
 │   └── pipeline-state.sh ← pipeline state management
-├── loki/logs/           ← Loki's improvement observations
+├── loki/logs/.gitkeep   ← Loki's repo footprint (logs + regenerable CHANGELOG stay local in ~/.syndicate/loki/, gitignored)
 ├── CLAUDE.md            ← project rules
 ├── SYNDICATE_AXIOMS.md  ← 10 binding rules + scar registry
 └── README.md            ← you are here
