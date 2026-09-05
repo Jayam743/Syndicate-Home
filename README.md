@@ -1,4 +1,4 @@
-# Syndicate v2.0
+# Syndicate v2.3
 
 > *"Every heist needs a crew. Every crew needs a plan. Every plan needs an Odin."*
 
@@ -15,24 +15,24 @@ A multi-agent orchestration system for Claude Code. Thirteen specialists, one or
 ```
                          ┌─────────┐
                     ┌────│  ODIN   │────┐
-                    │    │ (4.8)   │    │
+                    │    │ (opus)  │    │
                     │    └────┬────┘    │
                     │         │         │
               ┌─────┴──┐  ┌──┴───┐  ┌──┴─────┐
               │ SCRIBE  │  │ LOKI │  │ LEDGER │
-              │ (4.7)   │  │(4.8) │  │ (4.8)  │
+              │ (opus)  │  │(opus)│  │ (son)  │
               └────┬────┘  └──┬───┘  └────────┘
                    │          │
         ┌──────────┼──────────┼──────────┐
         │          │          │          │
    ┌────┴───┐ ┌───┴────┐ ┌───┴───┐ ┌───┴────┐
    │ FORGE  │ │ ATHENA │ │TITAN  │ │GAUNTLET│
-   │ (4.7)  │ │ (4.7)  │ │(4.7) │ │ (4.7)  │
+   │ (son)  │ │ (opus) │ │(son) │ │ (son)  │
    └────────┘ └────────┘ └───────┘ └────────┘
 
    ┌──────────┐  ┌────────┐  ┌────────┐  ┌────────┐  ┌─────────┐
    │SAFECRACKR│  │ HERMES │  │ HERALD │  │ CIPHER │  │ SPECTER │
-   │  (4.7)   │  │ (son5) │  │ (son5) │  │ (son5) │  │  (4.8)  │
+   │  (son)   │  │ (hai)  │  │ (hai)  │  │ (hai)  │  │  (opus) │
    └──────────┘  └────────┘  └────────┘  └────────┘  └─────────┘
 ```
 
@@ -164,6 +164,32 @@ cd ~/Syndicate  # or wherever you cloned it
 - `~/.claude/agents/` ← Syndicate agent definitions (symlinked)
 - `~/.syndicate/` ← Ledger tracking, pipeline state
 
+### Home (Pro plan) install
+
+The `home/lean-pro` branch is a lean, portable variant for a **home machine on the
+Anthropic $20 Pro subscription** (claude.ai login — not Bedrock, not an API key). It
+uses subscription aliases (`opus`/`sonnet`/`haiku`), drops the cloud/infra/cost-dollar
+machinery, and vendors a **frozen snapshot** of BJ's core workflow (no live-upstream
+fetch).
+
+```bash
+git checkout home/lean-pro
+./install.sh                      # agents + hooks/settings (no model env vars)
+./scripts/install-bj-baseline.sh  # link the vendored BJ core skills (non-destructive)
+```
+
+**Post-install model check (do this once):** confirm whether Pro actually grants Opus.
+
+1. Run `/model` and `/usage` to see what your plan resolves.
+2. Set `model: opus` on one agent and confirm it resolves (does not error). Do the same
+   for `model: sonnet` and `model: haiku` on a formula-band and a mechanical-band agent —
+   confirm all three aliases resolve, not just `opus`.
+3. If Pro rejects `opus`, flip the think band to `sonnet` — change the `model:` line on
+   each think-band agent (`agents/odin.md`, `agents/muse.md`, `agents/loki.md`,
+   `agents/scribe.md`, `agents/specter.md`, `agents/athena.md`) from `opus` to `sonnet`,
+   and update the tier table in `config/models.md` to match. That's the whole flip —
+   aliases make it a one-line-per-file change either way, no ids to hunt down.
+
 **Uninstall:** run `./uninstall.sh`. It's fully reversible and surgical:
 - Removes only Syndicate's agent/skill symlinks (yours and BJ's are untouched)
 - Strips only Syndicate's hook entries from `settings.json` (backs it up first;
@@ -188,19 +214,19 @@ Full reference: `config/toolkit.md`
 
 ## Model Tiers
 
-Model is chosen by **role, not rank** — think-work gets Opus, formula-work gets Sonnet/Haiku:
+Model is chosen by **role, not rank**, using subscription **aliases** (`opus`/`sonnet`/`haiku`):
 
-| Model | Agents | Why |
+| Alias | Agents | Why |
 |-------|--------|-----|
-| **Opus 4.8** | Odin, Muse, Loki, Specter | Orchestrate / conceive / attack / investigate — pure reasoning |
-| **Opus 4.7** | Athena | Reason about bugs at 80%+ confidence |
-| **Opus 4.6** | Forge, Scribe, Titan, Safecracker | Blast-radius: code/infra/secrets — a weak model's mistake is costly |
-| **Sonnet 4.6** | Gauntlet, Ledger | Running tests + formatting reports — mostly mechanical |
-| **Haiku 4.5** | Hermes, Herald, Cipher | Git commands / message templates / file conversion — pure formula |
+| **`opus`** (think) | Odin, Muse, Loki, Scribe, Specter, Athena | Orchestrate / conceive / attack / infer / investigate / review — reasoning where a subtle error is expensive |
+| **`sonnet`** (formula) | Forge, Gauntlet, Ledger, Titan, Safecracker | Formulated execution from a decided spec — code / tests / reports / local ops / secret hygiene |
+| **`haiku`** (mechanical) | Hermes, Herald, Cipher | Git commands / message templates / file conversion — pure formula |
 
-**Cost reality:** all Opus versions are the same rate ($5/$25). 4.6-vs-4.8 is a capability choice, not a cost cut. Real savings are Opus→Sonnet (−40%) and Sonnet→Haiku (−80%) — and the biggest lever is not running Opus agents when the workflow or a cheaper agent should do the work.
+Athena runs a conditional cross-family second pass on `sonnet` for high-stakes/security diffs (review-diversity).
 
-**Fallback:** each agent falls back within its family or to the session model (never up a tier). If everything's unavailable, it uses whatever model your Claude Code session runs, with a warning.
+**Quota, not dollars:** a subscription is flat-fee — the scarce resource is the usage window. Conserve Opus quota by keeping the think band lean and delegating formulated work to Sonnet/Haiku (see `config/doctrine.md` → Quota Directive).
+
+**Fallback:** every agent declares `fallback_model: none`. Subscriptions resolve the alias directly — if it fails to resolve, fail loud rather than silently running on a different tier. On first install, confirm Pro grants Opus (see the Home install section); if not, flip the think band to `sonnet`.
 
 ---
 
@@ -234,6 +260,7 @@ Syndicate/
 - [x] v2.0 — Toolkit awareness, Godspeed autonomy, safety hooks, axioms, skills, pipeline persistence
 - [x] v2.1 — Deterministic pipeline engine (JS workflows instead of LLM orchestration)
 - [x] v2.2 — Wave pattern integration (multi-issue campaign execution)
+- [x] v2.3 — Home (Pro plan) lean port: subscription aliases, infra/cost stripped, vendored BJ baseline (`home/lean-pro`)
 - [ ] v3.0 — Visual UI (the Jarvis/galaxy dream)
 - [ ] v3.1 — markitdown integration for Cipher
 

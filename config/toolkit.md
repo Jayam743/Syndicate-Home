@@ -72,7 +72,7 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 | `/wtf` | Start incident troubleshooting flight recorder | Specter |
 | `/wtf-now` | Record a manual journal entry during troubleshooting | Specter |
 | `/wtf-happened` | Get incident timeline + generate runbook | Specter |
-| `/issue` | Create structured issues (plan, epic, feature, story, bug, chore) | Odin / Hermes |
+| `gh issue create` | Create structured issues (GitHub-native; home is GitHub-only, no `/issue` skill vendored) | Odin / Hermes |
 | `/ddd` | Domain-Driven Design — event storming, modeling, handoff | Scribe / Odin |
 | `/devspec` | Create Development Specification (deliverables manifest) | Scribe / Odin |
 | `/assesswaves` | Assess if work justifies wave-pattern execution (4+ issues?) | Odin |
@@ -80,8 +80,8 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 | `/goalseek` | Open-ended goal-seeking — probe/judge/steer/journal loop | Odin |
 | `/prepwaves` | Validate specs, compute dependency waves (BJ's workflow) | Odin |
 | `/nextwave` | Execute one wave with per-wave approval (BJ's workflow) | Odin |
-| `/wavemachine` | Full autonomous campaign, no per-wave gate (BJ's workflow) | Odin (godspeed mode) |
-| `/wave` | Show current wave status | Ledger / Odin |
+| `/wavemachine` *(OPTIONAL — absent on home)* | Full autonomous campaign, no per-wave gate (BJ's workflow) | Odin (godspeed mode) |
+| `/wave` *(OPTIONAL — absent on home)* | Show current wave status | Ledger / Odin |
 | `/thoughts` | Stress-test a proposal before acting | Loki |
 | `/multithread` | Parallel discussion over independent items | Odin |
 | `/grunt` | Spawn scoped-ops agent for bounded backlogs | Odin |
@@ -110,7 +110,7 @@ Hooks fire based on lifecycle events. Agents should expect their behavior.
 |------|-------------|--------------|
 | `pre-push-test-gate.sh` | Blocks `git push` unless tests ran (per-worktree sentinel keyed by repo toplevel) | Gauntlet MUST run tests before Hermes pushes |
 | `pre-stage-secrets-gate.sh` | Blocks `git add` of `.env`, `.key`, `.pem`, credentials | Hermes/Forge can't accidentally stage secrets |
-| `pre-dispatch-godspeed-gate.sh` | **Only active under a Godspeed mandate.** Checkpoints a mutating command (push/reset/rebase, `rm`, `aws` delete/terminate/rb, `terraform apply\|destroy`, `kubectl delete`, `helm`, `gh repo delete`, `glab … delete`) unless it can PROVE the branch is non-protected. | All agents: under Godspeed, mutations on `main`/`master`/`prod`/`production`/`trunk`/`release/*`/`hotfix/*`/`kahuna/*` (or detached HEAD / non-worktree) get checkpointed — switch to a feature branch or run manually. `GODSPEED_GATE_DISABLED=1` overrides. |
+| `pre-dispatch-godspeed-gate.sh` | **Only active under a Godspeed mandate.** Checkpoints a mutating command (`git push`/`reset`/`rebase`, `rm`, `gh repo delete`) unless it can PROVE the branch is non-protected. | All agents: under Godspeed, mutations on `main`/`master`/`prod`/`production`/`trunk`/`release/*`/`hotfix/*`/`kahuna/*` (or detached HEAD / non-worktree) get checkpointed — switch to a feature branch or run manually. `GODSPEED_GATE_DISABLED=1` overrides. |
 
 ### PostToolUse (fires after tool execution)
 
@@ -154,10 +154,10 @@ MCP tools are available via `ToolSearch`. Load them on demand.
 
 | Server | Tools Prefix | When to Use |
 |--------|-------------|-------------|
-| **sdlc-server** | `mcp__sdlc-server__*` | Wave management, PR/MR lifecycle, CI status, issue tracking, branch guard, commutativity checks |
+| **sdlc-server** *(OPTIONAL — absent on home)* | `mcp__sdlc-server__*` | Wave management, PR lifecycle, CI status, issue tracking, branch guard. Home is GitHub-only via `gh`; the wave/campaign skills degrade to unavailable rather than erroring when this server is absent. |
 | **wtf-server** | `mcp__wtf-server__*` | Flight recorder — `wtf_freshell` (start), `wtf_now` (journal), `wtf_happened` (timeline), `wtf_imout` (suspend) |
 | **nerf-server** | `mcp__nerf-server__*` | Context budget — `nerf_budget`, `nerf_darts`, `nerf_mode`, `nerf_scope`, `nerf_status` |
-| **disc-server** | `mcp__disc-server__*` | Discord — `disc_send`, `disc_read`, `disc_list`, `disc_create_channel`, `disc_create_thread`, `disc_resolve` |
+| **disc-server** *(OPTIONAL — absent on home)* | `mcp__disc-server__*` | Discord — `disc_send`, `disc_read`, etc. The `/disc` skill degrades to unavailable when this server is absent. |
 
 ### Key MCP Patterns
 
@@ -220,23 +220,15 @@ These are independent: decay handles "you've been running a while this session";
 
 **Branch-allowlist layer (`pre-dispatch-godspeed-gate.sh`):** under a mandate, mutating commands are checkpointed unless the branch is provably non-protected — this is ADDITIVE to, not a replacement for, the ABSOLUTE_GATES keyword net in `godspeed.sh`. **Maintenance ritual:** when a new mutating tool/verb enters the workflow, add its pattern to the gate's `MUTATING_VERBS` list. ABSOLUTE_GATES is the last-line safety net (prod/deploy/destroy keywords), NOT a substitute for keeping the branch gate's verb filter current.
 
-## Platform Detection
+## Platform
 
-Agents should detect the git platform from remote URL:
-- `github.com` → use `gh` CLI
-- `gitlab.com` or internal GitLab → use `glab` CLI
-
-Check: `git remote get-url origin 2>/dev/null`
+Home is GitHub-only. Use the `gh` CLI; confirm with `git remote get-url origin 2>/dev/null`.
 
 ## Available CLIs (pre-approved in permissions)
 
 | CLI | Available | Use For |
 |-----|-----------|---------|
 | `gh` | GitHub | PRs, issues, releases |
-| `glab` | GitLab | MRs, issues, pipelines |
-| `aws` | AWS (always with --profile) | Cloud resources |
-| `terraform` | IaC | Infrastructure |
-| `docker` | Containers | Build, run, inspect |
 | `markitdown` | Document conversion | PDF/DOCX → markdown |
 | `shellcheck` | Shell linting | Validate scripts |
 
@@ -271,6 +263,6 @@ Titan (infra/ansible agent) owns this at task-start; the operator can run it dir
 | Context running low | `/reseed` or `/nerf` to manage |
 | Multi-issue work (4+ items) | `/assesswaves` → `/prepwaves` → `/nextwave` |
 | Need to verify workflow compliance | `/ibm` (issue-branch-MR check) |
-| Creating a new issue | `/issue` (structured, labeled, wave-ready) |
+| Creating a new issue | `gh issue create` (GitHub-native; structured with `--body`/`--label`) |
 | Want autonomous execution | Say "godspeed" → pipeline flows without gates |
 | Want to stop autonomous | Say "HALT!" → immediate stop |

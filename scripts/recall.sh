@@ -163,14 +163,12 @@ echo "── Recent merge history (${REPO_DIR##*/}) ──"
 if git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
     REMOTE="$(git -C "$REPO_DIR" remote get-url origin 2>/dev/null || echo '')"
     MR_OUT=""
-    if echo "$REMOTE" | grep -qi gitlab && command -v glab >/dev/null 2>&1; then
-        MR_OUT="$(glab mr list --merged --per-page "$MAX_MRS" -R "$REPO_DIR" 2>/dev/null | head -n "$MAX_MRS")"
-    elif echo "$REMOTE" | grep -qi github && command -v gh >/dev/null 2>&1; then
+    if echo "$REMOTE" | grep -qi github && command -v gh >/dev/null 2>&1; then
         MR_OUT="$(gh pr list --state merged --limit "$MAX_MRS" 2>/dev/null)"
     fi
 
     # If the CLI gave us something useful, show it. Otherwise ALWAYS fall back to
-    # local git merge history (works offline / when glab-gh isn't authed).
+    # local git merge history (works offline / when gh isn't authed).
     if [ -n "$(echo "$MR_OUT" | tr -d '[:space:]')" ]; then
         echo "$MR_OUT" | sed 's/^/  /'
     else

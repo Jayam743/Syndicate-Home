@@ -66,11 +66,7 @@ ABSOLUTE_GATES=(
     "drop database"
     "rm -rf /"
     "destroy"
-    "terraform destroy"
-    "terraform apply.*prod"
-    "aws.*prod.*delete"
-    "aws.*prod.*terminate"
-    "vault.*prod"
+    "deploy.*prod"
 )
 
 INPUT=$(cat 2>/dev/null || true)
@@ -137,7 +133,7 @@ fi
 # --- Check absolute gates (these ALWAYS block, godspeed or not) ---
 # Extended-regex match (-E) with end-of-options (--): the -- lets gate values
 # that start with a dash (e.g. "--force") be treated as patterns not grep flags,
-# while -E keeps the .*-style gates (e.g. "terraform apply.*prod") matching as regex.
+# while -E keeps the .*-style gates (e.g. "deploy.*prod") matching as regex.
 for gate in "${ABSOLUTE_GATES[@]}"; do
     if printf '%s' "$ACTION" | grep -qiE -- "$gate"; then
         jq -nc --arg g "$gate" '{decision:"block",reason:("Gated axis detected (prod/deploy/irreversible keyword: " + $g + "). This action requires explicit user approval — the Godspeed mandate does not override the ABSOLUTE rule.")}'

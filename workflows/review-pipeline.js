@@ -70,7 +70,7 @@ if (args.skipRecall) {
     {
       label: 'recall:prime',
       phase: 'Scope',
-      model: 'us.anthropic.claude-haiku-4-5-20251001-v1:0', // cost-tier (#22): mechanical shell-out
+      model: 'haiku', // mechanical shell-out
       schema: {
         type: 'object',
         properties: { brief: { type: 'string' }, matched: { type: 'boolean' } },
@@ -258,7 +258,7 @@ log(`Omission check: ${omissionResults.filter(o => o.satisfied === 'yes').length
 // review on a DIFFERENT model family (Sonnet 5) to catch what the Opus pass missed. It is
 // GATED so trivial reviews don't pay for a second pass. Both passes' findings are merged
 // and flow through the same Loki adversarial Verify below.
-const SECOND_PASS_MODEL = 'us.anthropic.claude-sonnet-5[1m]' // pinned id (validate.sh 3d)
+const SECOND_PASS_MODEL = 'sonnet' // cross-family alias (validate.sh 3d)
 
 // High-stakes signal: explicit arg wins; otherwise infer from signals the pipeline already
 // has — security-sensitive surface (context/target/criteria text or a security-dimension

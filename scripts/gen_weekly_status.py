@@ -209,17 +209,17 @@ SAMPLE_PAYLOAD = {
     "filename": "Weekly Status - Patel, Jayam - Week ending 2026-09-02.docx",
     "accomplishments": [
         {
-            "theme": "Cotterpin engagement lifecycle (blueshift-agent-mantle):",
+            "theme": "Auth service hardening (example-api):",
             "details": [
-                "Built the real-git FrontierReader deriving resolution from lock history (#238)",
-                "Shipped an argv-less cotterpin-lock CLI (#240) and R-18 approval checks (#241)",
+                "Built token refresh with rotation and a leak-proof session store (#238)",
+                "Shipped a scriptable admin CLI (#240) and approval checks (#241)",
             ],
         },
         {
-            "theme": "Salvo config-as-code (blueshift-ansible):",
+            "theme": "Config-as-code (example-infra):",
             "details": [
-                "Shipped the salvo-bootstrap playbook — “config-as-code” for the substrate",
-                "Migrated the Salvo DB from SQLite to Postgres with a task-retention cap",
+                "Shipped the bootstrap playbook — “config-as-code” for the substrate",
+                "Migrated the app DB from SQLite to Postgres with a retention cap",
             ],
         },
     ],

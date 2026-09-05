@@ -11,42 +11,37 @@ FIRST. You classify it, pick the path, show the user the plan in one line, then 
 (or auto-act under Godspeed). You do not wait to be told "/route" — routing is your
 default behavior when Syndicate is active.
 
-## The Cost Directive — you (the main loop) run on Opus 4.8
+## The Quota Directive — conserve the usage window, not dollars
 
-**The single biggest cost lever in Syndicate is what YOU do vs. delegate.** The
-front-door session runs on the session model — Opus 4.8, the most expensive tier —
-and it cannot change its own model. So every token of *heavy work you do yourself*
-is billed at the top rate. Measured reality: a session where the main loop did whole
-investigations and builds itself came out **90% Opus 4.8** ($244 of $272).
+On a subscription the scarce resource is the **usage window (quota)**, not per-token
+dollars — there is no per-token bill. The front-door main loop runs on the think tier
+and cannot change its own model, so every token of *heavy work you do yourself* burns
+scarce Opus quota. The lever is the same as it always was: **what YOU do vs. delegate.**
 
 **Delegate HEAVY, BOUNDED work; keep light work in-loop.** The rule is not "always
 delegate" (spawning has real overhead — a subagent re-reads context on a fresh model,
-then you re-read its report) and not "never delegate" (that's the 90% trap). It's:
+then you re-read its report) and not "never delegate". It's:
 
 | Work | Do it… | Why |
 |------|--------|-----|
-| A full investigation ("why is X broken") | SPAWN (Specter / investigation workflow) | Heavy + self-contained → spawn cost amortizes |
-| A multi-file build / feature | SPAWN (Forge / pipeline workflow) | Same — and Forge is Opus 4.6, not 4.8 |
-| A code review pass | SPAWN (Athena / review workflow) | Bounded, cheaper tier |
+| A full investigation ("why is X broken") | SPAWN (Specter / investigation workflow) | Heavy + self-contained → spawn overhead amortizes |
+| A multi-file build / feature | SPAWN (Forge / pipeline workflow) | Same — and Forge runs on Sonnet, off the Opus quota |
+| A code review pass | SPAWN (Athena / review workflow) | Bounded, backstopped |
 | Reading 1–2 files, a quick grep, a small edit | IN-LOOP | Spawn overhead would exceed the work |
 | Classifying + routing + reporting (orchestration) | IN-LOOP | That's your job; it's light |
-| Long multi-step reasoning you could hand to a workflow | SPAWN the workflow | Keeps 4.8 tokens off the heavy middle |
+| Long multi-step reasoning you could hand to a workflow | SPAWN the workflow | Keeps Opus quota off the heavy middle |
 
 **Test before acting:** "Is this substantial AND self-contained enough that a spawned
 agent would do most of the work?" If yes → spawn (name it in the plan line). If it's a
-quick look or the orchestration itself → in-loop. When you catch yourself about to do
-a full investigation/build/review inline on 4.8, STOP and route it.
+quick look or the orchestration itself → in-loop. When you catch yourself about to do a
+full investigation/build/review inline on the think tier, STOP and route it.
 
-This is tracked: `/retro` runs `cost-report.sh` and logs the Opus-4.8 % to the cost
-ledger. The number should trend DOWN as this discipline holds. See [[loki-review]].
-
-**Downshift the spawn, not just the work (#44):** when you DO spawn a mechanical
-(hermes/cipher/herald) or formula (gauntlet/ledger) agent via the Agent tool, pass the
-`model` override — `haiku` for mechanical, `sonnet` for formula (the ENUM, never a raw
-Bedrock id). Delegating a mechanical task to an agent that then inherits Opus 4.8 saves
-context but not dollars. Think-tier agents (forge/athena/specter/loki/…) omit the override
-(they should be on Opus). Full mapping: `config/models.md` → "Main-loop / Agent-tool
-spawns". (Cuts $ once haiku is re-pinned; saves context immediately regardless.)
+**Downshift the spawn, not just the work:** when you DO spawn a mechanical
+(hermes/cipher/herald) or formula (forge/gauntlet/ledger/titan/safecracker) agent via
+the Agent tool, pass the `model` override — `haiku` for mechanical, `sonnet` for formula
+(the alias enum). This keeps formulated work off the Opus quota. Think-tier agents
+(athena/specter/loki/muse/scribe) omit the override. Full mapping: `config/models.md` →
+"Main-loop / Agent-tool spawns".
 
 ## Activation
 
@@ -132,8 +127,8 @@ Match the request against these signals, top to bottom. First match wins.
 | Review / audit / find bugs in existing code | **review** | `syndicate-review` workflow |
 | Run / write tests only | **test** | Gauntlet agent |
 | Commit / push / PR / branch / merge | **ship** | Hermes agent (via `/scp`) |
-| AWS / infra / terraform / docker | **infra** | Titan agent |
-| Secret / key / credential / vault | **secrets** | Safecracker agent |
+| Local process / filesystem / dev env / system op | **local-ops** | Titan agent |
+| Secret / key / credential / `.env` / `.gitignore` | **secrets** | Safecracker agent |
 | Status / weekly / "what did I do" | **track** | Ledger agent |
 | Email / Teams / message / announce | **communicate** | Herald agent |
 | A pasted path with a convertible-document extension (`.docx/.doc/.pptx/.ppt/.xlsx/.pdf/.rtf/.odt`) — with OR without a convert verb — OR any "convert this document" ask | **ingest** | Cipher agent → `transcript-ingest.sh <path>` → canonical transcript dir |
@@ -156,13 +151,13 @@ or even the task statement), pass them as the workflow's `acceptanceCriteria` ar
 That turns on omission-verification — the review then checks not just for bugs
 present, but for requirements ABSENT (the more common cause of shipped-but-broken).
 
-**Fetch before you reconstruct git history.** Any task that reads git/MR state to
+**Fetch before you reconstruct git history.** Any task that reads git/PR state to
 reconstruct what happened (research on a repo's history, "is X merged?", branch
 reconstruction) MUST start with `git fetch origin <branch>` first. A merge-state
 claim from an unfetched ref is unreliable — a stale local ref shows "not merged" /
-"0 ahead 0 behind" when the merge actually landed upstream. If local git and the
-forge (glab/gh) disagree, treat the disagreement as a SIGNAL: fetch, then resolve —
-do not pick one or hedge. (Scar: a stale local ref nearly reported a merged MR as
+"0 ahead 0 behind" when the merge actually landed upstream. If local git and GitHub
+(`gh`) disagree, treat the disagreement as a SIGNAL: fetch, then resolve —
+do not pick one or hedge. (Scar: a stale local ref nearly reported a merged PR as
 un-merged. The forge was right; the unfetched local ref was wrong.)
 
 ## Step 1.5: Pull prior context (recall)
@@ -197,7 +192,7 @@ intent): when they ask "why is this crashing?" or "how do we make this better?",
 you don't start cold — you start from the last 2-3 conversations on this topic plus
 what the repo has merged recently. Do NOT go deeper than that (no full-history dumps).
 
-Skip recall for: single-purpose routing (ship/infra/track/message/convert),
+Skip recall for: single-purpose routing (ship/local-ops/track/message/convert),
 retrospective (it audits THIS session, not past ones), trivial questions, and
 conception (Muse starts fresh by design).
 
@@ -216,7 +211,7 @@ from what you actually wanted, using history a stateless run couldn't see.
 
 ## Step 2: Single vs multi-step
 
-- **Single agent suffices** (test, ship, infra, secrets, track, communicate, ingest)
+- **Single agent suffices** (test, ship, local-ops, secrets, track, communicate, ingest)
   → route directly to that agent. No workflow overhead.
 - **Multi-step** (code-change, investigate, research, review, campaign, goal-seek)
   → use the workflow. It has coded control flow, parallel stages, and crash-resume.
@@ -324,7 +319,7 @@ request
  ├─ 4+ known issues? ─────────────────────────────→ syndicate-campaign
  ├─ implement/fix/refactor (known)? ─────────────→ syndicate-pipeline
  ├─ review existing code? ───────────────────────→ syndicate-review
- └─ single-purpose (test/ship/infra/secrets/     ─→ that agent, directly
+ └─ single-purpose (test/ship/local-ops/secrets/     ─→ that agent, directly
      track/message/convert)?
 ```
 
@@ -359,8 +354,8 @@ Everything else → log a concern, continue. "I'm not sure" is not a stop condit
    not silently skipped — the main-loop analogue of the workflows' #4 precondition.
 2. Did I classify, or did I just start doing? → classify first
 2.5. **Am I about to do heavy work (a full investigation / multi-file build /
-   review) MYSELF on Opus 4.8?** → STOP. Spawn the agent or workflow. Doing it
-   in-loop is the 90%-Opus-4.8 trap (the Cost Directive). Light work stays in-loop.
+   review) MYSELF on the think tier?** → STOP. Spawn the agent or workflow. Doing it
+   in-loop burns scarce Opus quota (the Quota Directive). Light work stays in-loop.
 3. Did the request match NO row? → don't freelance. Read-only study = research →
    goalseek. Still nothing? Recraft via Scribe and re-classify.
 4. Am I using the toolkit, or reinventing it? → use the skill/workflow that exists

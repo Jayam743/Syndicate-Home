@@ -216,6 +216,12 @@ if [ "$BJ_DETECTED" = true ]; then
     echo "  personal layer) and leaves BJ's settings untouched. Run it once per"
     echo "  repo where you want the crew to auto-dispatch."
     echo "  ○ Safety gates (test/secrets/prod) come from BJ's workflow"
+    echo ""
+    echo "  Home box: the BJ layer is NOT fetched from upstream — it comes from the"
+    echo "  frozen snapshot in vendor/bj-baseline/. Install its core skills with:"
+    echo "       ./scripts/install-bj-baseline.sh"
+    echo "  (links the vendored BJ core skills into ~/.claude/skills/, skipping any"
+    echo "   you already have)."
 else
     echo "  Standalone mode: registering Syndicate's own hooks."
     register_sessionstart "$SETTINGS_FILE"
@@ -224,6 +230,7 @@ else
     echo "  ✓ pre-push-test-gate.sh, pre-stage-secrets-gate.sh, godspeed.sh"
     echo "  ℹ  For the safety GATES (test/secrets/stop), also merge the PreToolUse/"
     echo "     PostToolUse/Stop blocks from config/settings.template.json into ${SETTINGS_FILE}"
+    echo "  ℹ  If you want BJ's core skills too, run: ./scripts/install-bj-baseline.sh"
 fi
 echo ""
 
@@ -258,13 +265,23 @@ echo "  ✓ ~/.syndicate/conception/ (Muse decision ledgers)"
 echo "  ✓ ~/.syndicate/investigations/ (Specter flight logs)"
 echo ""
 
-# --- 6. Install markitdown (for Cipher) ---
+# --- 6. Dependency probes (home: subscription — no Bedrock/aws/glab) ---
 echo "━━━ Dependencies ━━━"
+
+# jq is HARD — the installer's hook registration and several hooks require it.
+if command -v jq &>/dev/null; then
+    echo "  ✓ jq: installed"
+else
+    echo "  ✗ jq: NOT FOUND (required) — install jq before continuing"
+    echo "    (hook registration + several Syndicate hooks depend on it)"
+fi
+
+# markitdown / shellcheck / gh are SOFT — warn, don't block.
 if command -v markitdown &>/dev/null; then
     echo "  ✓ markitdown: installed"
 else
-    echo "  ○ markitdown: not found"
-    echo "    Install: pip install markitdown (needed for Cipher agent)"
+    echo "  ○ markitdown: not found (optional — needed for Cipher agent)"
+    echo "    Install: pip install markitdown"
 fi
 
 if command -v shellcheck &>/dev/null; then
@@ -275,11 +292,12 @@ fi
 
 if command -v gh &>/dev/null; then
     echo "  ✓ gh: installed (GitHub CLI)"
-elif command -v glab &>/dev/null; then
-    echo "  ✓ glab: installed (GitLab CLI)"
 else
-    echo "  ○ gh/glab: not found (install one for PR/MR workflows)"
+    echo "  ○ gh: not found (optional — install for PR workflows; home is GitHub-only)"
 fi
+
+# NOTE: on a subscription the harness resolves the opus/sonnet/haiku aliases itself —
+# this installer does NOT set any model/Bedrock/AWS env vars.
 echo ""
 
 # --- 7. Settings template (standalone only) ---

@@ -44,28 +44,25 @@ deciding what to add to `~/.claude/settings.json` allowedTools.
 - File writes (only test files)
 
 ### Specter (investigator)
-- `docker logs`, `docker ps`, `docker exec` (READ-ONLY inspection)
-- `aws ... describe-*`, `aws ... list-*`, `aws ... get-*` (read-only)
 - `curl`, `wget` (health checks)
-- `systemctl status`, `journalctl` (service inspection)
-- `ssh` + read-only commands via SSM
+- `systemctl status`, `journalctl` (local service inspection)
+- Process/filesystem inspection (`ps`, `ls`, `find`, log reads)
 - Never: restart, stop, modify, delete
 
 ### Hermes (git ops)
 - `git add`, `git commit`, `git push`
 - `git checkout -b`, `git branch`
-- `glab mr create`, `gh pr create`
+- `gh pr create`
 - `git status`, `git log`, `git diff`
 
-### Titan (infra)
-- `aws --profile X ... describe-*` (read-only default)
-- `terraform plan` (read-only)
-- `docker ps`, `docker inspect` (read-only)
-- Mutating: ONLY with explicit user approval
+### Titan (local dev/system ops)
+- Local process/filesystem inspection (`ps`, `ls`, `find`, `systemctl status`)
+- `git`, build/run of local dev tooling (read-only default)
+- Mutating local ops: ONLY with explicit user approval
 
-### Safecracker (secrets)
-- `vault read`, `vault write` (vault ops)
-- `aws secretsmanager get-secret-value`
+### Safecracker (local secret hygiene)
+- `.env` / `.gitignore` inspection and hygiene checks
+- `gh secret` (GitHub repo/environment secrets)
 - `openssl rand` (key generation)
 - Never: print plaintext secrets in output
 
@@ -73,7 +70,7 @@ deciding what to add to `~/.claude/settings.json` allowedTools.
 - `git log` across repos (data gathering)
 - File reads (transcripts)
 - File writes (ledger log only)
-- `glab mr list`, `gh pr list`
+- `gh pr list`
 
 ### Herald (messenger)
 - File reads (context for drafting)

@@ -62,23 +62,23 @@ Agent markdown files live in `agents/`. Each file defines:
 
 ## Model Tiers
 
-3-band / 4-pin model (full rationale in `config/models.md`):
+3-band model on **subscription aliases** (full rationale in `config/models.md`):
 
-| Band | Model | Agents |
+| Band | Alias | Agents |
 |------|-------|--------|
-| think | opus 4.8 `[1m]` (fallback: none — fail loud) | Odin, Muse, Loki, Specter, Forge, Scribe, Titan, Safecracker |
-| think | opus 4.8 `[1m]` primary + Sonnet 5 `[1m]` conditional second-pass | Athena (review-diversity: cross-family second pass on high-stakes/security diffs) |
-| formula | sonnet 5 `[1m]` (fallback haiku) | Gauntlet, Ledger |
-| mechanical | haiku 4.5 (fallback session) | Hermes, Herald, Cipher |
+| think | `opus` | Odin, Muse, Loki, Scribe, Specter, Athena |
+| formula | `sonnet` | Forge, Gauntlet, Ledger, Titan, Safecracker |
+| mechanical | `haiku` | Hermes, Herald, Cipher |
+
+Athena runs a conditional cross-family second pass on `sonnet` for high-stakes/security
+diffs (review-diversity) — a review-workflow behavior, not a frontmatter fallback.
 
 **Fallback rules:**
-- think: opus-4-8[1m] → NONE (fail loud; no `→ session` no-op — session IS opus-4-8, a dishonest failover). Athena's Sonnet-5 second-pass is a review-workflow behavior, not a frontmatter fallback.
-- formula: sonnet-5[1m] → haiku-4-5 → session+COST-WARN
-- mechanical: haiku-4-5 → session+COST-WARN
-- `session` = Opus 4.8 on this account; formula/mechanical reaching session is a
-  cost-increase event — log loudly, never silently
-- Cost: all Opus = same rate; real savings are Opus→Sonnet→Haiku and not
-  over-using Opus agents (delegation discipline)
+- Every agent declares `fallback_model: none`. Subscriptions resolve the alias directly;
+  there is no honest cheaper-tier failover and no `session` no-op (the session IS the
+  resolved model). If an alias fails to resolve, fail loud.
+- Quota, not dollars, is the scarce resource: keep the think band lean and delegate
+  formulated work to Sonnet (see the Quota Directive in `config/doctrine.md`).
 
 ## Safety Guards
 
@@ -90,7 +90,6 @@ Either way, agents respect:
 - `/precheck` — mandatory before any commit
 - `pre-push-test-gate` — tests must pass before push
 - `pre-stage-secrets-gate` — blocks staging credentials
-- AWS `--profile` enforcement — never AWS_PROFILE= env var
 - Closed legal exits — only 3 reasons to halt a pipeline
 
 ## Development Rules

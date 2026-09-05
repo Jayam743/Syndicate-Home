@@ -83,14 +83,13 @@ fi
 echo ""
 echo "--- Pinned-Set + Tier Band Rules ---"
 
-# The live pinned model IDs (3 live + 1 dead slot). The 4th Bedrock slot (fable) is
-# ORG-BLOCKED and permanently unavailable this session — nothing resolves to it, so it
-# is NOT listed here. Opus/Sonnet are pinned as [1m] profiles ONLY, so their ids MUST
-# carry the [1m] suffix verbatim (bare ids won't resolve). Haiku is 200K ctx — bare.
+# The subscription aliases (home). Subscriptions accept ONLY these three aliases; full
+# or Bedrock model ids and inference-profile suffixes do not resolve. Every agent
+# model:, every workflow model literal, and the BAND maps must be one of these.
 PINNED_MODELS=(
-    "us.anthropic.claude-opus-4-8[1m]"
-    "us.anthropic.claude-sonnet-5[1m]"
-    "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    "opus"
+    "sonnet"
+    "haiku"
 )
 
 # Valid tier bands
@@ -122,17 +121,17 @@ for agent in "${REPO_ROOT}/agents/"*.md; do
     fallback=$(grep "^fallback_model:" "$agent" | head -1 | sed 's/fallback_model: *//')
     tier=$(grep "^tier:" "$agent" | head -1 | sed 's/tier: *//')
 
-    # model: must be one of the 4 pinned IDs
+    # model: must be one of the 3 aliases
     if ! is_pinned_model "$model"; then
-        echo "  FAIL: ${name} — model '${model}' is not in the pinned set"
+        echo "  FAIL: ${name} — model '${model}' is not one of opus/sonnet/haiku"
         ERRORS=$((ERRORS + 1))
     fi
 
-    # fallback_model: must be a pinned ID OR literal 'session' OR literal 'none'.
-    # 'none' is the think-band fail-loud sentinel (Fork D): opus-4-8 -> session would
-    # be a dishonest no-op (session IS opus-4-8), so think agents declare no fallback.
-    if [ "$fallback" != "session" ] && [ "$fallback" != "none" ] && ! is_pinned_model "$fallback"; then
-        echo "  FAIL: ${name} — fallback_model '${fallback}' is not in the pinned set and is not 'session'/'none'"
+    # fallback_model: must be an alias OR literal 'none'. On a subscription the alias
+    # resolves directly — there is no honest cheaper-tier failover and no 'session'
+    # no-op — so every agent declares 'none' (fail loud if the alias won't resolve).
+    if [ "$fallback" != "none" ] && ! is_pinned_model "$fallback"; then
+        echo "  FAIL: ${name} — fallback_model '${fallback}' is not an alias and is not 'none'"
         ERRORS=$((ERRORS + 1))
     fi
 
@@ -210,41 +209,41 @@ if [ "$ERRORS" -eq "$WF_ERRORS_BEFORE" ]; then
     echo "  OK: all workflows declare scribe + recall preconditions"
 fi
 
-# --- 3d. Workflow model-id Literals must be pinned ids (issues #13, #53) ---
-# EVERY Bedrock model-id string literal in workflows/*.js MUST be one of the pinned
-# ids — not only `model:`-keyed values but ALSO const-/var-assigned ids (e.g.
-# `const SECOND_PASS_MODEL = '...'`). This closes the 400-on-unpinned-id door at CI:
-# an unpinned id (a dropped [1m] variant, a typo) would pass CI then fail the Bedrock
-# call at runtime. We scan any quoted literal whose content starts with
-# `us.anthropic.claude` — a superset of the old `model:`-only check.
-# False-trip guard: full-line comments are skipped and trailing ` //...` inline
-# comments are stripped BEFORE scanning, so a commented-out/example id can't FAIL the
-# build; a real ` :` inside the id (haiku's `-v1:0`) survives because `://`-style URLs
-# have no space before `//`. Band-name refs (model: BAND.sonnet) carry no quote → skipped.
+# --- 3d. Workflow model Literals must be aliases (issues #13, #53) ---
+# EVERY model token a workflow passes to the harness MUST be one of the 3 aliases
+# (opus/sonnet/haiku). On a subscription a non-alias (a leftover Bedrock id, a typo)
+# would pass CI then fail the model call at runtime. We validate three literal sources:
+#   1. `model:` option values that are quoted literals (BAND.x / identifier refs are
+#      resolved via sources 2/3);
+#   2. BAND-map entries (`opus: 'opus'` etc.);
+#   3. const `*_MODEL = '...'` assignments (e.g. SECOND_PASS_MODEL).
+# False-trip guard: full-line comments are skipped and trailing ` //...` inline comments
+# are stripped BEFORE scanning, so a commented-out/example token can't FAIL the build.
 echo ""
-echo "--- Workflow model-id Literals (pinned-id only) ---"
+echo "--- Workflow model Literals (alias-only) ---"
 
 MODEL_ERRORS_BEFORE="$ERRORS"
 if [ -d "${REPO_ROOT}/workflows" ]; then
     shopt -s nullglob
     for wf in "${REPO_ROOT}/workflows/"*.js; do
         wfname="$(basename "$wf")"
+        stripped="$(grep -vE '^[[:space:]]*//' "$wf" | sed -E 's@[[:space:]]+//.*$@@')"
         while IFS= read -r val; do
             [ -z "$val" ] && continue
             if ! is_pinned_model "$val"; then
-                echo "  FAIL: ${wfname} — model-id literal '${val}' is not in the pinned set"
+                echo "  FAIL: ${wfname} — model literal '${val}' is not one of opus/sonnet/haiku"
                 ERRORS=$((ERRORS + 1))
             fi
-        done < <(grep -vE '^[[:space:]]*//' "$wf" \
-                 | sed -E 's@[[:space:]]+//.*$@@' \
-                 | grep -oE "['\"]us\.anthropic\.claude[^'\"]*['\"]" \
-                 | sed -E "s/^['\"]//; s/['\"]\$//")
+        done < <(printf '%s\n' "$stripped" \
+                 | grep -oE "(model:[[:space:]]*|_MODEL[[:space:]]*=[[:space:]]*|(opus|sonnet|haiku|fable):[[:space:]]*)'[^']*'" \
+                 | grep -oE "'[^']*'\$" \
+                 | sed -E "s/^'//; s/'\$//")
     done
     shopt -u nullglob
 fi
 
 if [ "$ERRORS" -eq "$MODEL_ERRORS_BEFORE" ]; then
-    echo "  OK: all workflow model-id literals are pinned ids"
+    echo "  OK: all workflow model literals are aliases"
 fi
 
 # --- 3e. Inlined fan-eligibility Drift Guard (issue #8) ---

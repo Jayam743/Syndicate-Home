@@ -15,10 +15,10 @@
 # Usage:
 #   investigation-memory.sh query "headscale coppermind path 502"
 #   investigation-memory.sh record --slug headscale-coppermind \
-#     --symptom "502 on coppermind path" \
-#     --root-cause "COPPERMIND_PATH unset in compose env" \
-#     --fix "added env var to services/rumrunner/compose.yml" \
-#     --repo blueshift-manifests --ts 2026-08-09T12:00:00
+#     --symptom "502 on the API path" \
+#     --root-cause "API_PATH unset in the service env" \
+#     --fix "added env var to services/api/compose.yml" \
+#     --repo example-repo --ts 2026-08-09T12:00:00
 
 set -u
 

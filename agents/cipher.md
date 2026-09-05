@@ -1,7 +1,7 @@
 ---
 name: cipher
-model: us.anthropic.claude-haiku-4-5-20251001-v1:0
-fallback_model: session
+model: haiku
+fallback_model: none
 tier: mechanical
 description: "Document Ingestion — converts PDF, DOCX, and other formats to markdown using markitdown."
 tools:

@@ -11,32 +11,20 @@ export const meta = {
   ]
 }
 
-// Cost-tier band → pinned Bedrock id (the 3 spend tiers; see config/models.md).
-// Only the mechanical workflow stages are downshifted off the default (Opus 4.8);
-// reasoning / blast-radius stages inherit the main-loop model. validate.sh enforces
-// that every model: literal here is one of the 4 pinned ids.
+// Band → subscription alias (the 3 tiers; see config/models.md). Only the
+// mechanical/formula workflow stages are downshifted off the main-loop model;
+// reasoning / blast-radius stages inherit it. validate.sh enforces that every
+// model: literal here is one of the 3 aliases (opus/sonnet/haiku).
 // NOTE (#22): an agent's .md `tier:`/`model:` frontmatter applies to Agent-TOOL
 // spawns, NOT to workflow agent() stages — a workflow stage's tier is whatever
 // opts.model it sets here (else it inherits the main-loop model). So reasoning
-// stages inheriting Opus is BY DESIGN (correct think-tier); mechanical stages
+// stages inheriting the think tier is BY DESIGN; mechanical/formula stages
 // (recall / gauntlet / hermes / ledger) must pin explicitly, as below.
 const BAND = {
-  opus: 'us.anthropic.claude-opus-4-8[1m]',
-  sonnet: 'us.anthropic.claude-sonnet-5[1m]',
-  haiku: 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+  opus: 'opus',
+  sonnet: 'sonnet',
+  haiku: 'haiku'
 }
-
-// Advisory soft budget for a SINGLE pipeline run (issue #7, mechanism "D"): a light,
-// post-hoc, WARN-ONLY cost governor living in the terminal Record stage. If a run's
-// total cost (computed by cost-report.sh — the single rate authority) exceeds this,
-// Ledger emits a loud advisory and a best-effort pipeline concern. It NEVER halts and
-// NEVER auto-downshifts. Override per-run with env SYNDICATE_COST_SOFT_USD. Default is
-// tuned for one workflow run (Scribe→Forge→Gauntlet→Athena→Hermes→Ledger) — a small,
-// mostly-delegated flow; bump it here if normal runs routinely trip the warning.
-// NOTE (by construction): the measured total EXCLUDES Ledger's own ledger:record
-// call — its transcript is not yet flushed when it reads cost-report.sh mid-call.
-// Honest for a warn-only governor; the bias is a small fixed under-count.
-const COST_SOFT_USD_DEFAULT = 4.00
 
 // Standard pipeline: the most common Syndicate flow
 // Scribe → Forge → Gauntlet + Athena (parallel) → Hermes → Ledger
@@ -397,41 +385,19 @@ const evidence = await agent(
   Write a one-line entry to ~/.syndicate/ledger/current-week.md
   Then return the evidence summary.
 
-  THEN run the light, post-hoc cost governor (advisory only — never halt anything):
-  1. Run: ~/.syndicate/scripts/cost-report.sh --append ${JSON.stringify(String(args.task || 'pipeline').slice(0, 40))} --kind operate
-     This computes THIS pipeline's cost AND appends the dated trend line to
-     ~/.syndicate/ledger/costs.md. cost-report.sh is the SINGLE rate authority — do
-     NOT reimplement or estimate rates yourself; just parse its output.
-  2. From its output, parse the TOTAL dollar amount and the Opus % from the line
-     "TOTAL: \$X   |   Opus (family): \$Y (Z%)".
-  3. Determine the soft budget: use env SYNDICATE_COST_SOFT_USD if set, else ${COST_SOFT_USD_DEFAULT}.
-  4. If TOTAL exceeds the soft budget: emit a LOUD advisory (state the total and the
-     soft budget), and — ONLY IF the file ~/.syndicate/pipelines/current.json already
-     exists — run (use SINGLE quotes and substitute the actual numbers, so the shell
-     does not expand $<total> as a variable):
-       ~/.syndicate/scripts/pipeline-state.sh concern 'cost: pipeline $<total> exceeded soft $<soft>'
-     NEVER halt, never downshift, and NEVER create or sed-edit current.json just to
-     warn — costs.md is the durable trend home; the concern is best-effort only.
-
   Return a JSON object with:
   - logged: boolean
-  - entry: string (the ledger line)
-  - pipelineCostUSD: number (the parsed TOTAL for this run)
-  - opusPct: number (the parsed Opus family %)
-  - costWarned: boolean (true if TOTAL exceeded the soft budget)`,
+  - entry: string (the ledger line)`,
   {
     label: 'ledger:record',
     phase: 'Record',
     agentType: 'ledger',
-    model: BAND.sonnet, // cost-tier: mechanical stage → sonnet
+    model: BAND.sonnet, // formula stage → sonnet
     schema: {
       type: 'object',
       properties: {
         logged: { type: 'boolean' },
-        entry: { type: 'string' },
-        pipelineCostUSD: { type: 'number' },
-        opusPct: { type: 'number' },
-        costWarned: { type: 'boolean' }
+        entry: { type: 'string' }
       },
       required: ['logged', 'entry']
     }
@@ -440,11 +406,6 @@ const evidence = await agent(
 
 if (evidence) {
   log(`Ledger: ${evidence.entry}`)
-  if (evidence.pipelineCostUSD !== undefined) {
-    log(`Cost: $${evidence.pipelineCostUSD}` +
-        (evidence.opusPct !== undefined ? ` (Opus ${evidence.opusPct}%)` : '') +
-        (evidence.costWarned ? ' ⚠ over soft budget' : ''))
-  }
 }
 
 return {

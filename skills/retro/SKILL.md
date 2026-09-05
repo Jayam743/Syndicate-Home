@@ -31,39 +31,28 @@ happened and stop.
 ## The report (only if there's real activity)
 
 This is a **read-only audit of the project** — do not edit project files, commit, or
-push. (Three exceptions, all the skill's own bookkeeping / durable state, not changes to
-the user's project: §1 appends a cost line via `cost-report.sh`, §6 may capture a new
-operating rule to a memory file, and §7 appends findings via `loki-log.sh`.) Route per the
-doctrine: Ledger owns accounting, Odin owns routing facts, Loki owns critique.
+push. (Two exceptions, all the skill's own bookkeeping / durable state, not changes to
+the user's project: §6 may capture a new operating rule to a memory file, and §7 appends
+findings via `loki-log.sh`.) Route per the doctrine: Ledger owns accounting, Odin owns
+routing facts, Loki owns critique.
 
 Be HONEST about uncertainty. If a number or model is not available to you, say
 "not reported" — never guess. Label inferred values as (inferred) with the basis.
 
-### 1. Token usage + cost (Ledger)
-- **Run the cost report** — the transcript records usage + model per message, so we
-  compute cost ourselves (and get a per-MODEL breakdown `/cost` can't):
-  ```
-  ~/.syndicate/scripts/cost-report.sh --per-subagent --append "<short session label>" --date <YYYY-MM-DD>
-  ```
-  This ALWAYS prints, and you MUST show the user, ALL of:
-  - the **per-model table** (out-tok / in+cache / cost);
-  - the **ON-DEMAND LIST** total (honest upper bound) AND the **EST. ACTUAL** total
-    (list × `BEDROCK_COST_FACTOR`, the committed-use discount — this is the number that
-    approximates the real AWS bill);
-  - the **Opus-family % — the delegation metric** (a RATIO, unaffected by the factor);
-  - the **per-subagent table** (from `--per-subagent`): agent · model · out-tok ·
-    in+cache · tools · est-cost.
-  It appends the est-actual line to `~/.syndicate/ledger/costs.md` for trend tracking.
-- **Interpret the Opus-family %:** high (>70%) means the main loop did heavy work itself
-  instead of delegating — flag it as a Cost Directive finding in §4. Low means
-  delegation discipline is holding.
-- `/cost` (client-side) is the harness's own tally if the user wants to cross-check;
-  the model can't see its output, so cost-report.sh is the model-visible source.
-- **The per-subagent table is REQUIRED** and comes from `--per-subagent` (above), which
-  reads the subagent transcripts DIRECTLY — authoritative, not from memory. Always render
-  it. Watch the `model` column: a mechanical agent (hermes/cipher/herald) or a formula
-  agent (gauntlet/ledger) showing `opus-4-8` instead of its tier is cost **tier-drift**
-  (the pins aren't effective / no per-spawn override) → flag in §4.
+### 1. Token usage + quota (Ledger)
+- On a subscription there is **no per-token dollar cost** — the scarce resource is the
+  usage window (quota), not dollars. There is no dollar-cost report to run.
+- Token/usage figures are **harness-sourced, never model-computed**: tell the user to
+  run **`/cost`** or **`/usage`** for the authoritative session tally. Do NOT estimate a
+  token or dollar number yourself — the honest answer is "run `/cost`/`/usage`".
+- **Delegation signal (quota):** did the main loop do heavy work (full investigations,
+  multi-file builds, reviews) inline on the think tier instead of delegating to
+  Sonnet/Haiku agents or workflows? If so, flag it as a Quota Directive finding in §4 —
+  cite the specific tasks that should have been delegated.
+- **Tier-drift check:** the SessionEnd model-audit (`~/.syndicate/ledger/model-audit.md`)
+  proves each subagent ran on its intended alias. A `DRIFT` row — e.g. a mechanical
+  (hermes/cipher/herald) or formula (forge/gauntlet/ledger/titan/safecracker) agent that
+  ran on `opus` instead of its tier — means the pin/override wasn't effective → flag in §4.
 
 ### 2. Models used (Ledger + Odin)
 - Main session model (from the environment block — this is known, not inferred).
@@ -84,10 +73,10 @@ Be HONEST about uncertainty. If a number or model is not available to you, say
   - Did recall (Step 1.5) fire when it should have — and if skipped, was the skip
     STATED (user-supplied context is a valid, but must-be-disclosed, skip reason)?
   - For git-history work: was `git fetch` run before reconstructing merge state?
-  - **Cost Directive: was the Opus-4.8 % high (>70%)?** If so, the main loop did
-    heavy work (investigations, builds, reviews) inline on the top tier instead of
-    spawning Specter/Forge/Athena or their workflows. Cite the specific tasks that
-    should have been delegated. This is usually the highest-$ finding of the session.
+  - **Quota Directive: did the main loop do heavy work inline on the think tier?** If so,
+    it burned scarce Opus quota on investigations/builds/reviews instead of spawning
+    Specter/Forge/Athena or their workflows. Cite the specific tasks that should have
+    been delegated. This is usually the highest-leverage finding of the session.
 - For each: what happened, what the doctrine says, severity.
 
 ### 5. Recommendations (Loki)
@@ -153,7 +142,7 @@ the `retrospective` classification.)
 
 ## Output
 
-The report is text only. The permitted writes are: §1's cost-ledger append, §6's
-optional new-rule memory capture, and §7's required `loki-log.sh` findings append (to
+The report is text only. The permitted writes are: §6's optional new-rule memory
+capture, and §7's required `loki-log.sh` findings append (to
 `~/.syndicate/loki/YYYY-MM.md`). Do not write anything else (no project edits, no repo
 commits) unless the user asks.

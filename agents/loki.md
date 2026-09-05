@@ -1,6 +1,6 @@
 ---
 name: loki
-model: us.anthropic.claude-opus-4-8[1m]
+model: opus
 fallback_model: none
 tier: think
 description: "Devil's Advocate — monitors other agents, challenges their work, logs improvement opportunities. Self-learning engine."

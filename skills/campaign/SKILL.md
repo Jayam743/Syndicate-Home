@@ -157,4 +157,5 @@ This is Syndicate's adaptation of BJ's workflow wave pattern:
 - Circular dependency detection halts at decomposition (before execution)
 
 For BJ's full wave tooling (with MCP integration, SDLC server, trust gates):
-use `/prepwaves` → `/nextwave` or `/wavemachine` from BJ's workflow directly.
+use `/prepwaves` → `/nextwave` or `/wavemachine` from BJ's workflow directly
+(`/wavemachine`/`/wave` are optional/absent on home — see `config/toolkit.md`).

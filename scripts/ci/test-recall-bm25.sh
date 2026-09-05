@@ -11,7 +11,6 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RECALL="${SCRIPT_DIR}/../recall.sh"
 INDEX_PY="${SCRIPT_DIR}/../lib/recall-index.py"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 PASS=0; FAIL=0; SKIP=0; FAILURES=()
 ok()   { echo "  PASS: $1"; PASS=$((PASS+1)); }
@@ -74,19 +73,22 @@ if [ "$RC" -eq 0 ] && [ -n "$NEW_LINE" ] && [ -n "$OLD_LINE" ] && [ "$NEW_LINE" 
 else fail "c_recency_tiebreak_newer_first" "rc=$RC new@$NEW_LINE old@$OLD_LINE out='$OUT'"; fi
 
 # ---------------------------------------------------------------------------
-# (d) Part-2 (merge history) block byte-unchanged vs git HEAD — the scorer swap
-#     must not touch Part 2. Static code diff; skips cleanly outside a git repo.
+# (d) Part-2 (merge history) block shape — home is GitHub-only. The block must use
+#     the `gh pr list` path (no `glab`/GitLab) and keep the local git merge-log
+#     fallback as the only offline path. Static content assertion.
 # ---------------------------------------------------------------------------
 MARKER='# --- Part 2: Recent merge history from the repo ---'
-if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1 \
-   && git -C "$REPO_ROOT" show "HEAD:scripts/recall.sh" >/dev/null 2>&1; then
-    NOW_P2="$(awk -v m="$MARKER" 'index($0,m){f=1} f' "$RECALL")"
-    HEAD_P2="$(git -C "$REPO_ROOT" show HEAD:scripts/recall.sh | awk -v m="$MARKER" 'index($0,m){f=1} f')"
-    if [ -n "$NOW_P2" ] && [ "$NOW_P2" = "$HEAD_P2" ]; then
-        ok "d_part2_merge_block_unchanged"
-    else fail "d_part2_merge_block_unchanged" "Part-2 block differs from HEAD (or marker missing)"; fi
+NOW_P2="$(awk -v m="$MARKER" 'index($0,m){f=1} f' "$RECALL")"
+if [ -z "$NOW_P2" ]; then
+    fail "d_part2_merge_block_shape" "Part-2 marker missing"
+elif printf '%s' "$NOW_P2" | grep -q 'glab'; then
+    fail "d_part2_merge_block_shape" "Part-2 still references glab (home is GitHub-only)"
+elif ! printf '%s' "$NOW_P2" | grep -q 'gh pr list'; then
+    fail "d_part2_merge_block_shape" "Part-2 missing the gh pr list path"
+elif ! printf '%s' "$NOW_P2" | grep -q 'log --merges'; then
+    fail "d_part2_merge_block_shape" "Part-2 missing the local git merge-log fallback"
 else
-    skip "d_part2_merge_block_unchanged" "not a git repo / no HEAD copy of recall.sh"
+    ok "d_part2_merge_block_shape"
 fi
 
 # ===========================================================================

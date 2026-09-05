@@ -55,8 +55,10 @@ if [ ! -f "$AUDIT_FILE" ]; then
     } > "$AUDIT_FILE"
 fi
 
-# strip us.anthropic.claude- prefix and -vN / -YYYYMMDD suffixes (cost-report.sh style)
-norm() { echo "$1" | sed 's/.*claude-//; s/-v[0-9].*//; s/-20[0-9][0-9].*//'; }
+# Reduce any model string to its family alias (opus/sonnet/haiku). Frontmatter is
+# already an alias; a runtime model family (e.g. "claude-opus-4-…") reduces to the same
+# alias. Aliases need no Bedrock-id normalization. Empty (e.g. 'none') stays empty.
+norm() { echo "$1" | grep -oiE 'opus|sonnet|haiku' | head -1 | tr '[:upper:]' '[:lower:]'; }
 
 for meta in "$SUB_DIR"/agent-*.meta.json; do
     [ -e "$meta" ] || continue

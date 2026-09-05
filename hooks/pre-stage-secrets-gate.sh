@@ -67,7 +67,7 @@ done
 
 if [[ -n "$BLOCKED_FILES" ]]; then
     BLOCKED_FILES=$(printf '%s' "$BLOCKED_FILES" | tr '\n' ' ' | tr -s ' ')
-    jq -nc --arg r "Potential secrets detected in staged files: $BLOCKED_FILES. Add them to .gitignore and store secrets in a vault. If intentional, stage with git add --force (not recommended) or set SECRETS_GATE_DISABLED=1." '{decision:"block",reason:$r}'
+    jq -nc --arg r "Potential secrets detected in staged files: $BLOCKED_FILES. Add them to .gitignore and store secrets in an env var or secret manager. If intentional, stage with git add --force (not recommended) or set SECRETS_GATE_DISABLED=1." '{decision:"block",reason:$r}'
     exit 0
 fi
 

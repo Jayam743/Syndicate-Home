@@ -52,13 +52,7 @@ MUTATING_VERBS=(
     'git[[:space:]]+reset'
     'git[[:space:]]+rebase'
     'rm[[:space:]]'
-    'aws[[:space:]].*[[:space:]](rb|delete|delete-.*|terminate|terminate-.*|rm)([[:space:]]|$)'
-    'terraform[[:space:]]+apply'
-    'terraform[[:space:]]+destroy'
-    'kubectl[[:space:]]+delete'
-    'helm[[:space:]]'
     'gh[[:space:]]+repo[[:space:]]+delete'
-    'glab[[:space:]].*[[:space:]]delete'
 )
 
 IS_MUTATING=0

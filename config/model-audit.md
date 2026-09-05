@@ -20,8 +20,8 @@ the session it:
 3. Reads the intended `model:` and `fallback_model:` from that frontmatter.
 4. Reads the model actually used from the co-named `agent-<id>.jsonl`
    (`.message.model` on assistant turns).
-5. Normalizes both (strip the `us.anthropic.claude-` prefix and any `-vN` / `-YYYYMMDD`
-   suffix) and compares:
+5. Reduces both to their family alias (`opus`/`sonnet`/`haiku`) — frontmatter is already
+   an alias; a runtime model family reduces to the same alias — and compares:
    - used == intended  → `ok`
    - used == fallback  → `fallback`
    - otherwise         → `DRIFT`
