@@ -55,8 +55,12 @@ if [ ! -f "$AUDIT_FILE" ]; then
     } > "$AUDIT_FILE"
 fi
 
-# strip us.anthropic.claude- prefix and -vN / -YYYYMMDD suffixes (cost-report.sh style)
-norm() { echo "$1" | sed 's/.*claude-//; s/-v[0-9].*//; s/-20[0-9][0-9].*//'; }
+# strip us.anthropic.claude- prefix and -vN / -YYYYMMDD suffixes (cost-report.sh style).
+# Also strip bracket tags like [1m]: they are UNOBSERVABLE at runtime — Bedrock emits
+# the BARE model id (e.g. claude-opus-4-8), so an intended id carrying [1m] would
+# otherwise normalize to opus-4-8[1m] and NEVER match the runtime opus-4-8, falsely
+# flagging every Opus/Sonnet [1m] agent as DRIFT and masking genuine drift.
+norm() { echo "$1" | sed 's/.*claude-//; s/-v[0-9].*//; s/-20[0-9][0-9].*//; s/\[[^]]*\]//'; }
 
 for meta in "$SUB_DIR"/agent-*.meta.json; do
     [ -e "$meta" ] || continue

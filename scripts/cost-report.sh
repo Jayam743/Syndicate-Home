@@ -26,7 +26,7 @@
 # TWO-LAYER cost model — keep these layers distinct:
 #   1. on-demand LIST price (this table)  — the honest UPPER BOUND.
 #   2. committed-use / EDP DISCOUNT       — a SEPARATE layer, captured by
-#      BEDROCK_COST_FACTOR (default 0.49, calibrated from real AWS Cost Explorer bills —
+#      BEDROCK_COST_FACTOR (default 0.42, calibrated from real AWS bills + /usage —
 #      see the COST_FACTOR block below). Do NOT bake this discount into the rate table;
 #      that would double-correct against the calibrated factor.
 # The report prints BOTH the on-demand list and the est. actual (list x factor). The
@@ -48,14 +48,22 @@ PER_SUBAGENT=""
 # Effective-cost factor: ACTUAL Bedrock bill as a fraction of on-demand LIST — a
 # committed-use/EDP discount. It is NOT perfectly flat: sessions with different
 # output/cache mixes discount slightly differently, so EST. ACTUAL is an APPROXIMATION
-# (treat as ±~10%), NEVER a precise bill. Calibrated from AWS Cost Explorer actuals:
-#   2026-08-27   $28.58 / $54.10  = 0.528   ([1m] session, premium removed)
-#   2026-08-31   $50.55 / $107.93 = 0.468
-#   token-weighted across both   = 79.13 / 162.03 = 0.488  -> default 0.49
-# Add more (actual/list) pairs over time and re-weight the default. Override per-run
+# (treat as ±~10%), NEVER a precise bill. Calibrated from ground-truth actuals
+# (AWS Cost Explorer + operator /usage datapoints):
+#   2026-08-27   $28.58  / $54.10  = 0.528   ([1m] session, premium removed)
+#   2026-08-31   $50.55  / $107.93 = 0.468
+#   2026-08-31   $191    / $454.16 = 0.420   (astrolabe, /usage)
+#   cotterpin    $180.09 / $424.68 = 0.424   (retro, operator-supplied)
+#   2026-09-02   $203    / $485.40 = 0.418   (salvo cutover, /usage)
+#   2026-09-03   $124    / $304.22 = 0.408   (salvo finish, /usage)
+#   token-weighted across all six = 777.22 / 1830.49 = 0.425  -> default 0.42
+# The four new /usage datapoints dominate by list volume (1668 of 1830) and land at
+# 0.418; the two small early Cost-Explorer pairs pull the weighted mean to ~0.425,
+# rounded to 0.42. The old 0.49 default consistently OVER-read est. actual ~16% vs
+# real bills. Add more (actual/list) pairs over time and re-weight. Override per-run
 # with env BEDROCK_COST_FACTOR; 1.0 = pure on-demand list. The Opus-% delegation
 # metric is a RATIO, so this factor never affects it.
-COST_FACTOR="${BEDROCK_COST_FACTOR:-0.49}"
+COST_FACTOR="${BEDROCK_COST_FACTOR:-0.42}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -268,7 +276,7 @@ if [ -n "$APPEND_LABEL" ]; then
       echo "# Syndicate Cost Ledger"
       echo ""
       echo "> Per-session cost, computed from transcripts by cost-report.sh (via /retro)."
-      echo "> \$ columns are EST. ACTUAL ≈ on-demand list x BEDROCK_COST_FACTOR (default 0.49,"
+      echo "> \$ columns are EST. ACTUAL ≈ on-demand list x BEDROCK_COST_FACTOR (default 0.42,"
       echo "> committed-use discount) — an APPROXIMATION (±~10%), not a precise bill. Opus % is a"
       echo "> ratio (factor-independent). Rows before 2026-08-27 are raw on-demand list (unfactored)."
       echo ""
