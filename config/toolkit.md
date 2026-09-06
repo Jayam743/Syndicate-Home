@@ -94,6 +94,44 @@ rather than ad-hoccing it. The skill has the tested, refined procedure.
 | `/dod` | Definition of Done verification | Gauntlet / Odin |
 | `/man` | Show usage for any skill | Any |
 
+## Frontend / UI / Animation Skills (external — added 2026-09-06)
+
+Installed globally in `~/.claude/skills` (from `emilkowalski/skills` + Anthropic's
+`frontend-design` plugin). They auto-surface by their `description` — the main loop and
+any agent with Skill access sees them and can invoke them. Use them for ANY frontend / UI
+/ motion work instead of freelancing design or easing decisions.
+
+| Skill | Use when | Who invokes |
+|-------|----------|-------------|
+| `frontend-design` | Building/redesigning any UI — avoid generic "AI slop" aesthetics; bold type, layout, visual detail | Forge (build), Muse (concept) |
+| `emil-design-eng` | UI polish, component design, the invisible details that make software feel great | Forge, Muse, Athena |
+| `apple-design` | Gesture-driven UI, spring/physical motion, translucent materials, typography foundations | Forge, Muse |
+| `animate` | Building a web animation from scratch (right easing/duration/property/interruption/exit) | Forge |
+| `animate-expo` | Animating in React Native / Expo (Reanimated, gestures, haptics) | Forge |
+| `animation-vocabulary` | Naming a motion effect ("what's it called when…") to prompt precisely | Any / Muse |
+| `find-animation-opportunities` | "What could be animated here?" — read-only proposal of motion with exact values | Muse, Athena |
+| `improve-animations` | Audit a codebase's motion → prioritized plan (read-only, hand to Forge) | Athena, Specter |
+| `review-animations` | Critique existing animation in a diff | Athena |
+| `pick-ui-library` | Choosing a UI/component library | Muse, Forge |
+| `prototype` | Rapid UI prototyping | Muse, Forge |
+| `ask-sonner` | Working with the Sonner toast library (setup/troubleshooting) | Forge |
+| `write-swift` | Writing/reviewing/migrating modern Swift (concurrency, data-race safety) | Forge, Athena |
+
+**Routing rule:** a frontend / UI / animation **code-change** still runs the
+`syndicate-pipeline` workflow — but Forge loads `frontend-design` (+ `animate` /
+`apple-design` as relevant) FROM the spec, and Athena adds `review-animations` /
+`improve-animations` on motion diffs. Bake the skill's guidance into the spec ONCE
+(the build-workflow guidance above) — don't re-invoke a design skill mid-build.
+
+### How agents "know" which skill / plugin / MCP to use
+- **Skills** advertise a `description`; Claude Code injects the roster each turn, so the
+  model picks the matching one automatically. The tables above are the ROUTING hint
+  (which agent, which situation) layered on top of that auto-discovery.
+- **Plugins** (e.g. `frontend-design`) are enabled in `~/.claude/settings.json`
+  (`enabledPlugins`) and load their skills/commands at session start — restart after enabling.
+- **MCP servers** are discovered via `ToolSearch` (deferred tools): load a tool's schema
+  on demand *before* calling it (calling an unloaded MCP tool fails). See the MCP table below.
+
 ## Hooks (fire automatically — agents don't invoke these, but must KNOW they exist)
 
 Hooks fire based on lifecycle events. Agents should expect their behavior.

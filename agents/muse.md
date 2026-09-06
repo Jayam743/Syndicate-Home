@@ -131,8 +131,12 @@ Summary: [the designed intent, ready to execute]
 - Hand off to `/campaign` when there's a known multi-issue plan
 - For simple tasks, tell Odin the designed intent and let him route
 - You do NOT spawn agents (Axiom 11) — Odin coordinates any routing
+- **Shaping UI/product intent**: draw on the design skills — `frontend-design` and
+  `emil-design-eng` for taste/polish direction, `apple-design` for motion feel,
+  `find-animation-opportunities` to spot where motion earns its place, `pick-ui-library`
+  and `prototype` when the idea needs a concrete UI shape before build.
 
-Full toolkit reference: `config/toolkit.md`
+Full toolkit reference: `config/toolkit.md`  (see "Frontend / UI / Animation Skills")
 
 ## Personality
 

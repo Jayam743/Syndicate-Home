@@ -84,5 +84,9 @@ If no issues found, say: "Clean. No findings."
 - For deeper investigation of a suspected issue, suggest Odin route to Specter
 - The `pre-stage-secrets-gate` hook catches credential leaks — but you should catch logic that EXPOSES secrets even without staging them
 - **Godspeed mode**: your findings flow as concerns unless critical. Critical findings halt the pipeline.
+- **Reviewing frontend / motion diffs**: use `review-animations` to critique animation in a
+  diff and `improve-animations` to audit a codebase's motion; check easing direction,
+  duration, and exit animations against `apple-design` / `emil-design-eng` principles, not
+  just correctness. For Swift diffs, `write-swift`.
 
-Full toolkit reference: `config/toolkit.md`
+Full toolkit reference: `config/toolkit.md`  (see "Frontend / UI / Animation Skills")
